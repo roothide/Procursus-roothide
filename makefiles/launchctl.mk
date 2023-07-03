@@ -3,12 +3,13 @@ $(error Use the main Makefile)
 endif
 
 STRAPPROJECTS     += launchctl
+LAUNCHCTL_COMMIT  := 3281f0472792c41a7165060259064a7d172df46c
 LAUNCHCTL_VERSION := 1.2.0
 DEB_LAUNCHCTL_V   ?= 1:$(LAUNCHCTL_VERSION)
 
 launchctl-setup: setup
-	$(call GITHUB_ARCHIVE,ProcursusTeam,launchctl,$(LAUNCHCTL_VERSION),v$(LAUNCHCTL_VERSION))
-	$(call EXTRACT_TAR,launchctl-$(LAUNCHCTL_VERSION).tar.gz,launchctl-$(LAUNCHCTL_VERSION),launchctl)
+	$(call GITHUB_ARCHIVE,roothide,launchctl,$(LAUNCHCTL_COMMIT),$(LAUNCHCTL_COMMIT))
+	$(call EXTRACT_TAR,launchctl-$(LAUNCHCTL_COMMIT).tar.gz,launchctl-$(LAUNCHCTL_COMMIT),launchctl)
 
 ifneq ($(wildcard $(BUILD_WORK)/launchctl/.build_complete),)
 launchctl:
