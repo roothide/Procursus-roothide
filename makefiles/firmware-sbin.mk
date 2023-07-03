@@ -2,7 +2,7 @@ ifneq ($(PROCURSUS),1)
 $(error Use the main Makefile)
 endif
 
-ifeq (,$(MEMO_PREFIX))
+ifeq (,$(MEMO_LINK_PREFIX))
 
 STRAPPROJECTS         += firmware-sbin
 FIRMWARE-SBIN_VERSION := 0-2
