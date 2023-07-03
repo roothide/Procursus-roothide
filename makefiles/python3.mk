@@ -5,7 +5,7 @@ endif
 SUBPROJECTS      += python3
 PYTHON3_MAJOR_V  := 3.9
 PYTHON3_VERSION  := $(PYTHON3_MAJOR_V).9
-DEB_PYTHON3_V    ?= $(PYTHON3_VERSION)-1
+DEB_PYTHON3_V    ?= $(PYTHON3_VERSION)-2
 
 ifeq ($(shell [ "$(CFVER_WHOLE)" -lt 1900 ] && echo 1),1)
 PYTHON3_CONFIGURE_FLAGS = ac_cv_func_mkfifoat=no \
