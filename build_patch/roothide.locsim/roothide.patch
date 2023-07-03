@@ -1,0 +1,49 @@
+diff --git a/main.m b/main.m
+index b10f47278..4ddb74639 100644
+--- a/main.m
++++ b/main.m
+@@ -23,6 +23,8 @@
+ #import "LSMGPXParserDelegate.h"
+ #import "PrivateHeaders.h"
+ 
++#include <roothide.h>
++
+ #define HELP_OPT 900
+ #define PLIST_OPT 500
+ #define EXPORT_PLIST_OPT 501
+@@ -55,7 +57,7 @@ static void start_scenario_sim(NSString *path, int delivery, int repeat){
+ 	if (repeat >= 0) simManager.locationRepeatBehavior = (uint8_t)repeat;
+ 	[simManager stopLocationSimulation];
+ 	[simManager clearSimulatedLocations];
+-	[simManager loadScenarioFromURL:[NSURL fileURLWithPath:path]];
++	[simManager loadScenarioFromURL:[NSURL fileURLWithPath:jbroot(path)]];
+ 	[simManager flush];
+ 	[simManager startLocationSimulation];
+ 	post_required_timezone_update();
+@@ -258,7 +260,7 @@ int main(int argc, char *argv[], char *envp[]) {
+ 				}
+ 			}
+ 			if (![plist.pathExtension isEqualToString:@"plist"]) {ERROR("ERROR: \"%s\" is not a plist file, file must end with .plist extension!\n", plist.UTF8String); return 3;}
+-			NSDictionary *options = [NSDictionary dictionaryWithContentsOfFile:plist][@"Options"];
++			NSDictionary *options = [NSDictionary dictionaryWithContentsOfFile:jbroot(plist)][@"Options"];
+ 			if (options){
+ 				ldb = [options[@"LocationDeliveryBehavior"] ?: @(ldb) intValue];
+ 				lrb = [options[@"LocationRepeatBehavior"] ?: @(lrb) intValue];
+@@ -267,7 +269,7 @@ int main(int argc, char *argv[], char *envp[]) {
+ 		}else if (gpx.length > 0){
+ 			if (access(strdup(gpx.UTF8String), F_OK) != 0) {ERROR("ERROR: \"%s\" does not exist!\n", gpx.UTF8String); return 2;}
+ 			
+-			NSXMLParser *xmlParser = [[NSXMLParser alloc] initWithContentsOfURL:[NSURL fileURLWithPath:gpx]];
++			NSXMLParser *xmlParser = [[NSXMLParser alloc] initWithContentsOfURL:[NSURL fileURLWithPath:jbroot(gpx)]];
+ 			
+ 			LSMGPXParserDelegate *gpxParserDelegate = [LSMGPXParserDelegate new];
+ 			gpxParserDelegate.averageSpeed = s > 0 ? s : gpxParserDelegate.averageSpeed;
+@@ -286,7 +288,7 @@ int main(int argc, char *argv[], char *envp[]) {
+ 				if (![exportPlist.pathExtension isEqualToString:@"plist"]) exportPlist = [NSString stringWithFormat:@"%@.plist", exportPlist];
+ 				output = exportPlist;
+ 			}
+-			[[gpxParserDelegate scenario] writeToFile:output atomically:NO];
++			[[gpxParserDelegate scenario] writeToFile:jbroot(output) atomically:NO];
+ 			if (exportPlist.length > 0) {PRINT("Exported to \"%s\"\n", output.UTF8String);}
+ 			if (!exportOnly) start_scenario_sim(output, ldb, lrb);
+ 		}else{

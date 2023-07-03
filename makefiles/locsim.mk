@@ -7,11 +7,16 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 SUBPROJECTS     += locsim
 LOCSIM_COMMIT   := 8bf4acb80bd10c121fb404341989692d4310f8f6
 LOCSIM_VERSION  := 1.1.8
-DEB_LOCSIM_V    ?= $(LOCSIM_VERSION)-1
+DEB_LOCSIM_V    ?= $(LOCSIM_VERSION)-2
+
+locsim: private LDFLAGS += $(if $(findstring roothide,$(MEMO_TARGET)),-lroothide)
 
 locsim-setup: setup
 	$(call GITHUB_ARCHIVE,udevsharold,locsim,$(LOCSIM_COMMIT),$(LOCSIM_COMMIT),locsim)
 	$(call EXTRACT_TAR,locsim-$(LOCSIM_COMMIT).tar.gz,locsim-$(LOCSIM_COMMIT),locsim)
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	$(call DO_PATCH,roothide.locsim,locsim,-p1)
+endif
 	mkdir -p $(BUILD_STAGE)/locsim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX){,$(MEMO_ALT_PREFIX)}/bin
 
 ifneq ($(wildcard $(BUILD_WORK)/locsim/.build_complete),)
