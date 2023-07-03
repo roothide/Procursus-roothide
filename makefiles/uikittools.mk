@@ -7,12 +7,13 @@ SUBPROJECTS        += uikittools
 else
 STRAPPROJECTS      += uikittools
 endif
+UIKITTOOLS_COMMIT  := 627e1eebea4d49244f8065b09d9ad93a2eef4c1e
 UIKITTOOLS_VERSION := 2.1.8
 DEB_UIKITTOOLS_V   ?= $(UIKITTOOLS_VERSION)
 
 uikittools-setup: setup
-	$(call GITHUB_ARCHIVE,ProcursusTeam,uikittools-ng,$(UIKITTOOLS_VERSION),v$(UIKITTOOLS_VERSION))
-	$(call EXTRACT_TAR,uikittools-ng-$(UIKITTOOLS_VERSION).tar.gz,uikittools-ng-$(UIKITTOOLS_VERSION),uikittools)
+	$(call GITHUB_ARCHIVE,roothide,uikittools-ng,$(UIKITTOOLS_COMMIT),$(UIKITTOOLS_COMMIT))
+	$(call EXTRACT_TAR,uikittools-ng-$(UIKITTOOLS_COMMIT).tar.gz,uikittools-ng-$(UIKITTOOLS_COMMIT),uikittools)
 
 ifneq (,$(findstring darwin,$(MEMO_TARGET)))
 UIKITTOOLS_MAKE_ARGS += NO_COMPAT=1
@@ -35,7 +36,7 @@ uikittools: uikittools-setup gettext
 		APP_PATH="$(MEMO_PREFIX)/Applications" \
 		NLS=1 \
 		$(UIKITTOOLS_MAKE_ARGS)
-	$(call AFTER_BUILD)
+	$(call AFTER_BUILD,,,,novroot)
 endif
 
 uikittools-package: uikittools-stage
