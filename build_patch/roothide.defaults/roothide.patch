@@ -1,0 +1,31 @@
+diff --git a/Sources/defaults.m b/Sources/defaults.m
+index b6defba33..9a9794069 100644
+--- a/Sources/defaults.m
++++ b/Sources/defaults.m
+@@ -28,7 +28,7 @@
+ #import <CoreFoundation/CoreFoundation.h>
+ #import <Foundation/Foundation.h>
+ #include <stdio.h>
+-
++#include <roothide.h>
+ #include "defaults.h"
+ 
+ int main(int argc, char *argv[], char *envp[])
+@@ -58,7 +58,7 @@ int main(int argc, char *argv[], char *envp[])
+ 
+ 		if (args.count >= 4 && [args[2] isEqualToString:@"-container"]) {
+ 			if ([args[3] hasPrefix:@"/"]) {
+-				container = (__bridge CFStringRef)[args[3] stringByResolvingSymlinksInPath];
++				container = (__bridge CFStringRef)[jbroot(args[3]) stringByResolvingSymlinksInPath];
+ 			} else if ([args[3] hasPrefix:@"group."]) {
+ 				NSURL *url = [[NSFileManager defaultManager]
+ 					containerURLForSecurityApplicationGroupIdentifier:args[3]];
+@@ -161,7 +161,7 @@ int main(int argc, char *argv[], char *envp[])
+ 				}
+ 				[args removeObjectAtIndex:2];
+ 			} else if ([args[2] hasPrefix:@"/"]) {
+-				appid = [args[2] stringByResolvingSymlinksInPath];
++				appid = [jbroot(args[2]) stringByResolvingSymlinksInPath];
+ 			} else
+ 				appid = args[2];
+ 		}
