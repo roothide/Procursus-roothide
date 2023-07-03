@@ -6,6 +6,12 @@ SUBPROJECTS      += dropbear
 DROPBEAR_VERSION := 2020.81
 DEB_DROPBEAR_V   ?= $(DROPBEAR_VERSION)
 
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+DDEFAULT_PATH = $(shell printf "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/X11:/usr/games\n" | tr ':' '\n' | sed "p; s|^|$(MEMO_ROOTFS)|" | tr '\n' ':' | sed 's|:$$|\n|')
+else
+DDEFAULT_PATH = $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)/bin
+endif
+
 dropbear-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://github.com/mkj/dropbear/archive/DROPBEAR_2020.81.tar.gz)
 	$(call EXTRACT_TAR,DROPBEAR_$(DROPBEAR_VERSION).tar.gz,dropbear-DROPBEAR_$(DROPBEAR_VERSION),dropbear)
@@ -38,7 +44,7 @@ ifneq (,$(findstring ramdisk,$(MEMO_TARGET)))
 		--disable-pututxline \
 		--disable-static \
 		LDFLAGS="$(LDFLAGS) -fPIE -pie" \
-		CFLAGS="$(CFLAGS) -DDEFAULT_PATH=\"\\\"$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)/bin\\\"\""
+		CFLAGS="$(CFLAGS) -DDEFAULT_PATH=\"\\\"$(DDEFAULT_PATH)\\\"\""
 else
 	cd $(BUILD_WORK)/dropbear && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
@@ -54,7 +60,7 @@ else
 		--disable-pututxline \
 		--disable-static \
 		LDFLAGS="$(LDFLAGS) -fPIE -pie" \
-		CFLAGS='$(CFLAGS) -DDEFAULT_PATH=\"\\\"$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/local/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)/bin\\\"\"'
+		CFLAGS='$(CFLAGS) -DDEFAULT_PATH=\"\\\"$(DDEFAULT_PATH)\\\"\"'
 endif
 	+$(MAKE) -C $(BUILD_WORK)/dropbear
 	+$(MAKE) -C $(BUILD_WORK)/dropbear install \
