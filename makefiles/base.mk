@@ -19,7 +19,7 @@ base:
 	@echo "Using previously built base."
 else
 base: base-setup
-ifeq (,$(MEMO_PREFIX))
+ifeq (,$(MEMO_LINK_PREFIX))
 	mkdir -p \
 		$(BUILD_STAGE)/base/$(MEMO_PREFIX)/{Applications,bin,boot,dev,lib,mnt,sbin,tmp,\
 etc/{default,profile.d},\
@@ -49,6 +49,12 @@ endif
 	$(call AFTER_BUILD)
 endif
 
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	rm -r $(BUILD_STAGE)/base/$(MEMO_PREFIX)/dev
+	$(LN_S) $(MEMO_ROOTFS)/dev $(BUILD_STAGE)/base/$(MEMO_PREFIX)/dev
+	$(LN_S) $(MEMO_ROOTFS)/ $(BUILD_STAGE)/base/$(MEMO_PREFIX)$(MEMO_ROOTFS)
+endif
+
 base-package: base-stage
 	# base.mk Package Structure
 	rm -rf $(BUILD_DIST)/base
@@ -59,7 +65,7 @@ base-package: base-stage
 	$(FAKEROOT) chmod 0644 $(BUILD_DIST)/base/$(MEMO_PREFIX)/var/run/utmp
 	$(FAKEROOT) chown 0:1 $(BUILD_DIST)/base/$(MEMO_PREFIX)/var/run
 	$(FAKEROOT) chown 0:3 $(BUILD_DIST)/base/$(MEMO_PREFIX)/var/empty
-ifeq (,$(MEMO_PREFIX))
+ifeq (,$(MEMO_LINK_PREFIX))
 	$(FAKEROOT) chown 0:80 $(BUILD_DIST)/base/{,Applications,Library/{,Frameworks,Preferences,Ringtones,Wallpaper},etc,tmp,var/{,db}}
 	$(FAKEROOT) chown 0:20 $(BUILD_DIST)/base/var/local
 	$(FAKEROOT) chown -R 501:501 $(BUILD_DIST)/base/var/mobile
