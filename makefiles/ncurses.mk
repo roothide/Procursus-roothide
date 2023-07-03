@@ -47,7 +47,7 @@ ncurses: ncurses-setup
 		DESTDIR="$(BUILD_STAGE)/ncurses"
 	rm -f $(BUILD_STAGE)/ncurses/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/{bin/tabs,share/man/man1/tabs.1*}
 
-ifeq (,$(MEMO_PREFIX))
+ifeq (,$(MEMO_LINK_PREFIX))
 	for ti in $(BUILD_STAGE)/ncurses/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/terminfo/*/*; do \
 		if [[ $$ti == */@(?(pc)ansi|cons25|cygwin|dumb|linux|mach|rxvt|screen|sun|tmux|vt@(52|100|102|220)|swvt25?(m)|[Exe]term|putty|konsole|gnome|apple|Apple_Terminal|unknown)?([-+.]*) ]]; then \
 			echo "keeping terminfo: $$ti" ; \
