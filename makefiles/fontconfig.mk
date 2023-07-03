@@ -4,7 +4,13 @@ endif
 
 SUBPROJECTS        += fontconfig
 FONTCONFIG_VERSION := 2.14.0
-DEB_FONTCONFIG_V   ?= $(FONTCONFIG_VERSION)
+DEB_FONTCONFIG_V   ?= $(FONTCONFIG_VERSION)-2
+
+FONTS_PATH := "/System/Library/Fonts,~/Library/UserFonts"
+
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+FONTS_PATH := "$(MEMO_ROOTFS)/System/Library/Fonts,$(MEMO_ROOTFS)/var/mobile/Library/UserFonts,$(FONTS_PATH)"
+endif
 
 fontconfig-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://www.freedesktop.org/software/fontconfig/release/fontconfig-$(FONTCONFIG_VERSION).tar.gz)
@@ -18,7 +24,7 @@ else
 fontconfig: fontconfig-setup gettext freetype uuid expat
 	cd $(BUILD_WORK)/fontconfig && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
-		--with-add-fonts="/System/Library/Fonts,~/Library/UserFonts"
+		--with-add-fonts="$(FONTS_PATH)"
 	+$(MAKE) -C $(BUILD_WORK)/fontconfig
 	+$(MAKE) -C $(BUILD_WORK)/fontconfig install \
 		DESTDIR=$(BUILD_STAGE)/fontconfig
