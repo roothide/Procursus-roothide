@@ -18,6 +18,10 @@ ifeq ($(shell [ "$(CFVER_WHOLE)" -lt 1700 ] && echo 1),1)
 OPENSSH_CONFIGURE_ARGS += ac_cv_func_strtonum=no
 endif
 
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+OPENSSH_CONFIGURE_ARGS += --with-default-path=$(shell printf "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/X11:/usr/games\n" | tr ':' '\n' | sed "p; s|^|$(MEMO_ROOTFS)|" | tr '\n' ':' | sed 's|:$$|\n|')
+endif
+
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 OPENSSH_EMBEDDED_SSHD_LIBS = -lcrypt
 endif
