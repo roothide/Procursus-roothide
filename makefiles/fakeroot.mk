@@ -31,11 +31,21 @@ fakeroot: fakeroot-setup
 		CFLAGS="$(CFLAGS) -DLIBIOSEXEC_INTERNAL=1" \
 		CPPFLAGS="$(CPPFLAGS) -DLIBIOSEXEC_INTERNAL=1"
 	sed -i 's|@SHELL@|$(MEMO_PREFIX)/bin/sh|' $(BUILD_WORK)/fakeroot/scripts/fakeroot.in
+
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	sed -i 's/@LDPRELOADVAR@="$$FAKEROOT_LIB"/@LDPRELOADVAR@="$$(jbroot $$FAKEROOT_LIB)"/g' $(BUILD_WORK)/fakeroot/scripts/fakeroot.in
+endif 
+
 	+$(MAKE) -C $(BUILD_WORK)/fakeroot all \
 		CFLAGS='$(CFLAGS) -D__DARWIN_UNIX03 -DMAC_OS_X_VERSION_MIN_REQUIRED=1000'
 	+$(MAKE) -C $(BUILD_WORK)/fakeroot install \
 		DESTDIR=$(BUILD_STAGE)/fakeroot
-	$(call AFTER_BUILD)
+
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	symredirect $(BUILD_STAGE)/fakeroot/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/faked
+endif
+
+	$(call AFTER_BUILD,,,,novroot)
 endif
 
 fakeroot-package: fakeroot-stage
