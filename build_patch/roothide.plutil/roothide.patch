@@ -1,0 +1,85 @@
+diff --git a/plutil.m b/plutil.m
+index 1e19d57e6..072668e38 100755
+--- a/plutil.m
++++ b/plutil.m
+@@ -4,6 +4,7 @@
+ #import <Foundation/Foundation.h>
+ #import <NSObject+SBJson.h>
+ #import <JSONHelper.h>
++#include <roothide.h>
+ 
+ @interface NSDate (NSDate_dateWithNaturalLanguageString)
+ +(id)dateWithNaturalLanguageString:(NSString *)string;
+@@ -17,6 +18,8 @@ void WriteMyPropertyListToFile(NSDictionary* plist, NSURL* url)
+ {
+ 	SInt32 error;
+ 
++	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
++
+ 	CFDataRef data = CFPropertyListCreateData(kCFAllocatorDefault, plist, kCFPropertyListXMLFormat_v1_0, 0, NULL);
+ 	CFURLWriteDataAndPropertiesToResource((CFURLRef)url, data, NULL, &error);
+ 	CFRelease(data);
+@@ -35,6 +38,8 @@ Boolean WriteMyPropertyListToXMLFile(NSData *data, NSURL *url)
+ {
+ 	SInt32 errorCode;
+ 
++	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
++
+ 	return CFURLWriteDataAndPropertiesToResource((CFURLRef)url, (CFDataRef)data, NULL, &errorCode);
+ }
+ 
+@@ -42,6 +47,8 @@ void WriteMyPropertyListToBinaryFile(CFPropertyListRef plist, NSURL *url)
+ {
+ 	CFWriteStreamRef stream;
+ 
++	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
++
+ 	stream = CFWriteStreamCreateWithFile(kCFAllocatorDefault, (CFURLRef)url);
+ 	CFWriteStreamOpen(stream);
+ 	CFPropertyListWrite(plist, stream, kCFPropertyListBinaryFormat_v1_0, 0, NULL);
+@@ -54,8 +61,8 @@ CFPropertyListRef readPropertyList(NSString *path)
+ 	CFErrorRef errorString;
+ 
+ 	path = [path stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+-	if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+-		NSData *plistData = [NSData dataWithContentsOfFile:path];
++	if ([[NSFileManager defaultManager] fileExistsAtPath:jbroot(path)]) {
++		NSData *plistData = [NSData dataWithContentsOfFile:jbroot(path)];
+ 		if ([plistData isEqual:[NSData data]]) {
+ 			// Work with empty files
+ 			plistData = [@" " dataUsingEncoding:NSUTF8StringEncoding];
+@@ -404,14 +411,14 @@ int main(int argc, const char **argv, const char **envp)
+ 			objectType = @"data";
+ 			numArgsUsed += 2;
+ 			NSString *dataPath = fetchArg(argument);
+-			if ( ![[NSFileManager defaultManager] fileExistsAtPath:dataPath] ) {
++			if ( ![[NSFileManager defaultManager] fileExistsAtPath:jbroot(dataPath)] ) {
+ 				fprintf(
+ 						stderr,
+ 						"Error: File with data not found at path: %s. Bailing.\n",
+ 						[dataPath UTF8String]);
+ 				exit(-1);
+ 			}
+-			objectArg = [NSData dataWithContentsOfFile:dataPath];
++			objectArg = [NSData dataWithContentsOfFile:jbroot(dataPath)];
+ 			if ( !objectArg ) {
+ 				fprintf(
+ 						stderr,
+@@ -474,7 +481,7 @@ int main(int argc, const char **argv, const char **envp)
+ 			errorOut=true;
+ 			int numPlists=0;
+ 			for (NSString *path in filePaths) {
+-				if ( [[NSFileManager defaultManager] fileExistsAtPath:path] ) {
++				if ( [[NSFileManager defaultManager] fileExistsAtPath:jbroot(path)] ) {
+ 					fprintf(stderr, "Error: File already exists at %s. Skipping.\n", [path UTF8String]);
+ 				} else {
+ 					WriteMyPropertyListToFile([NSDictionary dictionary], [NSURL fileURLWithPath:path]);
+@@ -567,7 +574,7 @@ int main(int argc, const char **argv, const char **envp)
+ 							continue;
+ 						json = [json stringByAppendingString:@"\n"];
+ 						NSError *error;
+-						if ( ![json writeToFile:[[path stringByDeletingPathExtension] stringByAppendingPathExtension:@"json"] atomically:YES encoding:4 error:&error])
++						if ( ![json writeToFile:jbroot([[path stringByDeletingPathExtension] stringByAppendingPathExtension:@"json"]) atomically:YES encoding:4 error:&error])
+ 							fprintf(stderr, "Error writing json file: %s\n", [[error localizedDescription] UTF8String]);
+ 					}
+ 
