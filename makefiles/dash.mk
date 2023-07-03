@@ -13,7 +13,12 @@ dash-setup: setup
 	mkdir -p $(BUILD_STAGE)/dash/$(MEMO_PREFIX)/bin
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	sed -i 's|"/etc/profile|"$(MEMO_PREFIX)/etc/profile|' $(BUILD_WORK)/dash/src/main.c
+ifneq (,$(MEMO_PREFIX))
 	sed -i 's|PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin|PATH=$(shell printf "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n" | tr ':' '\n' | sed "p; s|^|$(MEMO_PREFIX)|" | tr '\n' ':' | sed 's|:$$|\n|')|' $(BUILD_WORK)/dash/src/var.c
+endif
+ifneq (,$(MEMO_ROOTFS))
+	sed -i 's|PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin|PATH=$(shell printf "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n" | tr ':' '\n' | sed "p; s|^|$(MEMO_ROOTFS)|" | tr '\n' ':' | sed 's|:$$|\n|')|' $(BUILD_WORK)/dash/src/var.c
+endif
 endif
 
 ifneq ($(wildcard $(BUILD_WORK)/dash/.build_complete),)
