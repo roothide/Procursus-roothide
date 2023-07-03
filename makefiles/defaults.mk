@@ -8,9 +8,14 @@ SUBPROJECTS      += defaults
 DEFAULTS_VERSION := 1.0.1
 DEB_DEFAULTS_V   ?= $(DEFAULTS_VERSION)
 
+defaults: private LDFLAGS += $(if $(findstring roothide,$(MEMO_TARGET)),-lroothide)
+
 defaults-setup: setup
 	$(call GITHUB_ARCHIVE,ProcursusTeam,defaults,$(DEFAULTS_VERSION),v$(DEFAULTS_VERSION))
 	$(call EXTRACT_TAR,defaults-$(DEFAULTS_VERSION).tar.gz,defaults-$(DEFAULTS_VERSION),defaults)
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	$(call DO_PATCH,roothide.defaults,defaults,-p1)
+endif
 
 ifneq ($(wildcard $(BUILD_WORK)/defaults/.build_complete),)
 defaults:
