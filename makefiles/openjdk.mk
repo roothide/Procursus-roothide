@@ -128,7 +128,7 @@ openjdk-package: openjdk-stage
 	cp -a $(BUILD_STAGE)/openjdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin/{java,jfr,keytool,rmiregistry} \
 		$(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jre/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin
 	for bin in $(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jre/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin/*; do \
-		$(I_N_T) -add_rpath /$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/lib $$bin; \
+		$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/lib $$bin; \
 	done
 	cp -a $(BUILD_STAGE)/openjdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/man/man1/{java,jfr,keytool,rmiregistry}.1 \
 		$(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jre/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/man/man1
@@ -153,7 +153,7 @@ openjdk-package: openjdk-stage
 	cp -a $(BUILD_STAGE)/openjdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin/!(java|jfr|keytool|rmiregistry) \
 		$(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin
 	for bin in $(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/bin/*; do \
-		$(I_N_T) -add_rpath /$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/lib $$bin; \
+		$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/lib $$bin; \
 	done
 	cp -a $(BUILD_STAGE)/openjdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk/{include,jmods} \
 		$(BUILD_DIST)/openjdk-$(OPENJDK_MAJOR_V)-jdk/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/jvm/java-$(OPENJDK_MAJOR_V)-openjdk
