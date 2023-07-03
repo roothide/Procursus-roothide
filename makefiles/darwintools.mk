@@ -7,9 +7,14 @@ DARWINTOOLS_VERSION := 1.6
 ZBRFIRMWARE_COMMIT  := c6c0485c8f575a1e470767e3cb29fdf8e2de0e5e
 DEB_DARWINTOOLS_V   ?= $(DARWINTOOLS_VERSION)
 
+darwintools: private LDFLAGS += $(if $(findstring roothide,$(MEMO_TARGET)),-lroothide)
+
 darwintools-setup: setup
 	$(call GITHUB_ARCHIVE,zbrateam,Firmware,$(ZBRFIRMWARE_COMMIT),$(ZBRFIRMWARE_COMMIT))
 	$(call EXTRACT_TAR,Firmware-$(ZBRFIRMWARE_COMMIT).tar.gz,Firmware-$(ZBRFIRMWARE_COMMIT),darwintools)
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	$(call DO_PATCH,roothide.darwintools,darwintools,-p1)
+endif
 
 ifneq ($(wildcard $(BUILD_WORK)/darwintools/.build_complete),)
 darwintools:
@@ -29,7 +34,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	$(INSTALL) -s -Dm 0755 $(BUILD_WORK)/darwintools/sw_vers $(BUILD_STAGE)/darwintools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/sw_vers
 	$(INSTALL) -Dm 0644 $(BUILD_MISC)/darwintools/resolv.conf $(BUILD_STAGE)/darwintools/$(MEMO_PREFIX)/etc/resolv.conf
 endif
-	$(call AFTER_BUILD)
+	$(call AFTER_BUILD,,,,novroot)
 endif
 
 darwintools-package: darwintools-stage
