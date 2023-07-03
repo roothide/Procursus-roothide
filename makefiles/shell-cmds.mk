@@ -18,7 +18,11 @@ shell-cmds-setup: setup
 	$(call GITHUB_ARCHIVE,apple-oss-distributions,shell_cmds,$(SHELL-CMDS_VERSION),shell_cmds-$(SHELL-CMDS_VERSION))
 	$(call EXTRACT_TAR,shell_cmds-$(SHELL-CMDS_VERSION).tar.gz,shell_cmds-shell_cmds-$(SHELL-CMDS_VERSION),shell-cmds)
 	$(call DOWNLOAD_FILES,$(BUILD_WORK)/shell-cmds,https://github.com/alexreg/libsbuf/raw/master/src/{sbuf.c$(comma)sbuf.h$(comma)debug.h});
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	sed -i 's|"/bin:/usr/bin|"$(MEMO_PREFIX)/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:$(MEMO_ROOTFS)/bin:$(MEMO_ROOTFS)/usr/bin|g' $(BUILD_WORK)/shell-cmds/su/su.c
+else
 	sed -i 's|"/bin:/usr/bin|"/bin:/usr/bin:$(MEMO_PREFIX)/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin|g' $(BUILD_WORK)/shell-cmds/su/su.c
+endif
 	sed -i -e 's|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e 's|"/etc|"$(MEMO_PREFIX)/etc|g' $(BUILD_WORK)/shell-cmds/{path_helper/path_helper.c,apply/apply.1,renice/renice.8}
 	sed -i -e '/rootless\.h/d' -e '/SoftLinking\/SoftLinking\.h/d' $(BUILD_WORK)/shell-cmds/su/su.c
 ifeq ($(shell [ "$(CFVER_WHOLE)" -lt 2000 ] && echo 1),1)
