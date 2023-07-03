@@ -1,0 +1,30 @@
+diff --git a/src/PlistBuddy/PlistBuddy.c b/src/PlistBuddy/PlistBuddy.c
+index 3b15d4d28..9416cc938 100644
+--- a/src/PlistBuddy/PlistBuddy.c
++++ b/src/PlistBuddy/PlistBuddy.c
+@@ -21,6 +21,7 @@ along with Darling.  If not, see <http://www.gnu.org/licenses/>.
+ #include <stdio.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <stdbool.h>
++#include <roothide.h>
+ 
+ bool processArgs(int argc, const char** argv, const char** command);
+ void resolvePlistEntry(const char* whatStr, CFPropertyListRef* parent, CFPropertyListRef* entry, char** last, bool autoCreate);
+@@ -186,7 +187,7 @@ CFPropertyListRef loadPlist(const char* filePath)
+ 	CFStringRef errorString = NULL;
+ 	CFDataRef data = NULL;
+ 	CFPropertyListRef plist;
+-	CFStringRef path = CFStringCreateWithCString(kCFAllocatorDefault, filePath, kCFStringEncodingUTF8);
++	CFStringRef path = CFStringCreateWithCString(kCFAllocatorDefault, jbroot(filePath), kCFStringEncodingUTF8);
+ 	CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, path, kCFURLPOSIXPathStyle, false);
+ 
+ 	CFRelease(path);
+@@ -242,7 +243,7 @@ bool saveToFile(void)
+ {
+ 	bool rv = true;
+ 	CFDataRef data;
+-	CFStringRef path = CFStringCreateWithCString(kCFAllocatorDefault, outputFile, kCFStringEncodingUTF8);
++	CFStringRef path = CFStringCreateWithCString(kCFAllocatorDefault, jbroot(outputFile), kCFStringEncodingUTF8);
+ 	CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, path, kCFURLPOSIXPathStyle, false);
+ 
+ 	CFRelease(path);
