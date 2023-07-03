@@ -5,20 +5,24 @@ endif
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 
 STRAPPROJECTS      += libiosexec
+LIBIOSEXEC_COMMIT  := 54a0866ed9b25adf252d20b9e0366280be4e29d3
 LIBIOSEXEC_VERSION := 1.3.1
-DEB_LIBIOSEXEC_V   ?= $(LIBIOSEXEC_VERSION)
+DEB_LIBIOSEXEC_V   ?= $(LIBIOSEXEC_VERSION)-2
 export DEB_LIBIOSEXEC_V
 
 ifneq (,$(findstring rootless,$(MEMO_TARGET)))
 LIBIOSEXEC_FLAGS   := SHEBANG_REDIRECT_PATH="$(MEMO_PREFIX)" \
-		      LIBIOSEXEC_PREFIXED_ROOT=1
+		      LIBIOSEXEC_PREFIXED_ROOT=1	DEFAULT_PATH_PREFIX="$(MEMO_PREFIX)"
+else ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+LIBIOSEXEC_FLAGS   := SHEBANG_REDIRECT_PATH="$(MEMO_PREFIX)" \
+		      LIBIOSEXEC_PREFIXED_ROOT=1	DEFAULT_PATH_PREFIX="$(MEMO_ROOTFS)"
 else
 LIBIOSEXEC_FLAGS   := LIBIOSEXEC_PREFIXED_ROOT=0
 endif
 
 libiosexec-setup: setup
-	$(call GITHUB_ARCHIVE,ProcursusTeam,libiosexec,$(LIBIOSEXEC_VERSION),$(LIBIOSEXEC_VERSION))
-	$(call EXTRACT_TAR,libiosexec-$(LIBIOSEXEC_VERSION).tar.gz,libiosexec-$(LIBIOSEXEC_VERSION),libiosexec)
+	$(call GITHUB_ARCHIVE,roothide,libiosexec,$(LIBIOSEXEC_COMMIT),$(LIBIOSEXEC_COMMIT))
+	$(call EXTRACT_TAR,libiosexec-$(LIBIOSEXEC_COMMIT).tar.gz,libiosexec-$(LIBIOSEXEC_COMMIT),libiosexec)
 	sed -i 's/$$(shell uname -s)/Darwin/g' $(BUILD_WORK)/libiosexec/Makefile
 
 ifneq ($(wildcard $(BUILD_WORK)/libiosexec/.build_complete),)
