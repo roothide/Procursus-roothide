@@ -281,13 +281,13 @@ endif
 
 	# Note the mkdir above. These are just blank folders.
 	rm -rf $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/lib/swift{,_static}/$(PLATFORM)/Cxx{,Stdlib}.swiftmodule
-	$(call AFTER_BUILD,,,$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/lib)
-ifneq ($(MEMO_PREFIX),)
-	-for bin in bin/flang-new bin/lldb-server lib/liblldb.16.0.0.dylib; do \
-		$(I_N_T) -change @rpath/libc++.1.dylib /usr/lib/libc++.1.dylib $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/$$bin; \
+	$(call AFTER_BUILD,,,$(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/lib)
+ifneq ($(MEMO_LINK_PREFIX),)
+	-for file in $$(find $(BUILD_STAGE)/llvm -type f -exec sh -c "file -ib '{}' | grep -q 'x-mach-binary; charset=binary'" \; -print); do \
+		$(I_N_T) -change @rpath/libc++.1.dylib /usr/lib/libc++.1.dylib $$file; \
 	done
-	-$(I_N_T) -add_rpath $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/lib/sourcekitd.framework $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/bin/sourcekitd-test
-	-$(I_N_T) -add_rpath $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/lib/sourcekitd.framework $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/bin/sourcekitd-repl
+	-$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/lib/sourcekitd.framework $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/bin/sourcekitd-test
+	-$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/lib/sourcekitd.framework $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-16/bin/sourcekitd-repl
 endif
 endif
 
