@@ -1,0 +1,10 @@
+Package: roothide
+Name: roothide core
+Essential: yes
+Priority: required
+Version: @DEB_ROOTHIDE_V@
+Architecture: @DEB_ARCH@
+Description: roothide core package
+Maintainer: roothide
+Author: roothide
+Section: System
