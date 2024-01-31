@@ -28,6 +28,10 @@ endif
 	cp $(BUILD_WORK)/apt/apt-pkg/memrchr.cc $(BUILD_WORK)/apt/ftparchive
 	mkdir -p $(BUILD_WORK)/apt/build
 
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	sed -i -e 's|Cnf.CndSet("DPkg::Path", |Cnf.CndSet("DPkg::Path", "/usr/sbin:/usr/bin:/sbin:/bin:$(MEMO_ROOTFS)/usr/sbin:$(MEMO_ROOTFS)/usr/bin:$(MEMO_ROOTFS)/sbin:$(MEMO_ROOTFS)/bin");//|g' $(BUILD_WORK)/apt/apt-pkg/init.cc
+endif
+
 ifneq ($(wildcard $(BUILD_WORK)/apt/.build_complete),)
 apt:
 	@echo "Using previously built apt."
