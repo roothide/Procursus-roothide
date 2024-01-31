@@ -6,9 +6,9 @@ SUBPROJECTS  += flex
 FLEX_VERSION := 2.6.4
 DEB_FLEX_V   ?= $(FLEX_VERSION)-2
 
-ifeq (,$(findstring darwin,$(MEMO_TARGET)))
-FLEX_LDFLAGS := -Wl,-flat_namespace -Wl,-undefined -Wl,suppress
-endif
+# ifeq (,$(findstring darwin,$(MEMO_TARGET)))
+# FLEX_LDFLAGS := -Wl,-flat_namespace -Wl,-undefined -Wl,suppress
+# endif
 
 flex-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://github.com/westes/flex/releases/download/v$(FLEX_VERSION)/flex-$(FLEX_VERSION).tar.gz{$(comma).sig})
