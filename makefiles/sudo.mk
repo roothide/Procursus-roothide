@@ -43,6 +43,7 @@ endif
 		--with-vardir=$(MEMO_PREFIX)/var/db/sudo \
 		--with-rundir=$(MEMO_PREFIX)/var/run/sudo \
 		sudo_cv___func__=yes \
+		ax_cv_check_ldflags___Wl__force_flat_namespace=no \
 		ac_cv_have_working_snprintf=yes \
 		ac_cv_have_working_vsnprintf=yes \
 		ac_cv_header_libutil_h=no
@@ -56,7 +57,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	cp -a $(BUILD_MISC)/pam/sudo $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)/etc/pam.d
 endif
 	cp -a $(BUILD_MISC)/procursus.sudoers $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)/etc/sudoers.d/procursus
-	$(I_N_T) -add_rpath $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/libexec/sudo $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/sudo
+	$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/libexec/sudo $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/sudo
 	$(call AFTER_BUILD)
 endif
 
