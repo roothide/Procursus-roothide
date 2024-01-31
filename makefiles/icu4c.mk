@@ -34,18 +34,18 @@ icu4c: icu4c-setup
 	$(call AFTER_BUILD,copy)
 
 	for lib in $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicu*.$(ICU_VERSION).dylib $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicu*.$(ICU_VERSION).dylib; do \
-		$(I_N_T) -id $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/$$(basename $${lib} .$(ICU_VERSION).dylib).$(ICU_API_V).dylib $$lib; \
+		$(I_N_T) -id $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/$$(basename $${lib} .$(ICU_VERSION).dylib).$(ICU_API_V).dylib $$lib; \
 		$(LN_S) $$(basename $${lib} .$(ICU_VERSION).dylib).$(ICU_VERSION).dylib $$(echo $$lib | cut -d. -f-1).$(ICU_API_V).dylib; \
 		$(LN_S) $$(basename $${lib} .$(ICU_VERSION).dylib).$(ICU_API_V).dylib $$(echo $$lib | cut -d. -f-1).dylib; \
 	done
 
 	for stuff in $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicu*.$(ICU_VERSION).dylib $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicu*.$(ICU_VERSION).dylib $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/!(icu-config); do \
-		$(I_N_T) -change libicudata.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicudata.$(ICU_API_V).dylib $$stuff; \
-		$(I_N_T) -change libicui18n.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicui18n.$(ICU_API_V).dylib $$stuff; \
-		$(I_N_T) -change libicuio.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicuio.$(ICU_API_V).dylib $$stuff; \
-		$(I_N_T) -change libicutest.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicutest.$(ICU_API_V).dylib $$stuff; \
-		$(I_N_T) -change libicutu.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicutu.$(ICU_API_V).dylib $$stuff; \
-		$(I_N_T) -change libicuuc.$(ICU_API_V).dylib $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicuuc.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicudata.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicudata.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicui18n.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicui18n.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicuio.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicuio.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicutest.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicutest.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicutu.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicutu.$(ICU_API_V).dylib $$stuff; \
+		$(I_N_T) -change libicuuc.$(ICU_API_V).dylib $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicuuc.$(ICU_API_V).dylib $$stuff; \
 	done
 endif
 
@@ -64,6 +64,7 @@ icu4c-package: icu4c-stage
 	cp -a $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libicu{data,i18n,io,test,tu,uc}.dylib $(BUILD_DIST)/libicu-dev/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib
 	cp -a $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/{pkgconfig,icu} $(BUILD_DIST)/libicu-dev/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib
 	cp -a $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/icu $(BUILD_DIST)/libicu-dev/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share
+	cp -a $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include $(BUILD_DIST)/libicu-dev/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/
 
 	# icu4c.mk Prep icu-devtools
 	cp -a $(BUILD_STAGE)/icu4c/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/{sbin,bin,share} $(BUILD_DIST)/icu-devtools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)
