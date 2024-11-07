@@ -1,0 +1,20 @@
+Package: texlive
+Version: @DEB_TEXLIVE_V@
+Architecture: @DEB_ARCH@
+Maintainer: @DEB_MAINTAINER@
+Depends: libcairo2, fontconfig, libfreetype6, libgraphite2-3,
+    libharfbuzz-dev, libicu69, libgd3, libgmp10, libpixman-1-0,
+    libpaper1, libpng16-16, libx11-6, libxaw7, libmpfi-dev,
+    libmpfr6, potrace, teckit, libz-ng2, zziplib
+Section: tex
+Priority: optional
+Homepage: http://www.tug.org/texlive/
+Description: The entire texlive tree except for xindy.
+    .
+    To use latex engines the user has to run "sudo tlmgr install scheme-small"
+    and then "sudo fmtutil-sys --all".
+    Actually this installs more than the what is sctrictly necessary to run
+    latex engines but you will probably end up using a lot of this packages.
+    .
+    Warning: at the moment xelatex doesn't work but lualatex and pdflatex work
+    fine.

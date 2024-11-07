@@ -488,6 +488,8 @@ CC_FOR_BUILD  := $(shell command -v cc) $(CFLAGS_FOR_BUILD)
 CPP_FOR_BUILD := $(shell command -v cc) -E $(CPPFLAGS_FOR_BUILD)
 CXX_FOR_BUILD := $(shell command -v c++) $(CXXFLAGS_FOR_BUILD)
 AR_FOR_BUILD  := $(shell command -v ar)
+RANLIB_FOR_BUILD := $(shell command -v ranlib)
+STRIP_FOR_BUILD := $(shell command -v strip)
 export CC_FOR_BUILD CPP_FOR_BUILD CXX_FOR_BUILD AR_FOR_BUILD
 
 DEB_MAINTAINER    ?= Procursus Team <support@procurs.us>
@@ -635,6 +637,9 @@ BUILD_CONFIGURE_FLAGS := \
 	CC="$(CC_FOR_BUILD)" \
 	CXX="$(CXX_FOR_BUILD)" \
 	CPP="$(CPP_FOR_BUILD)" \
+	AR="$(AR_FOR_BUILD)" \
+	RANLIB="$(RANLIB_FOR_BUILD)" \
+	STRIP="$(STRIP_FOR_BUILD)" \
 	CFLAGS="$(CFLAGS_FOR_BUILD)" \
 	CXXFLAGS="$(CXXFLAGS_FOR_BUILD)" \
 	CPPFLAGS="$(CPPFLAGS_FOR_BUILD)" \
