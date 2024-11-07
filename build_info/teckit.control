@@ -1,0 +1,18 @@
+Package: teckit
+Version: @DEB_TECKIT_V@
+Architecture: @DEB_ARCH@
+Maintainer: @DEB_MAINTAINER@
+Author: Jonathan Kew
+Depends: libz-ng2
+Section: devel
+Priority: optional
+Homepage: https://github.com/silnrsi/teckit
+Description: Custom legacy encoding conversion tools for plain text files
+    TECkit is a toolkit for encoding conversions. It offers a simple format for
+    describing the mapping between legacy 8-bit encodings and Unicode, and a
+    set of utilities based on such descriptions for converting text between 8-bit
+    and Unicode encodings.
+    .
+    It also includes a compiler for a mapping description language that allows for
+    bidirectional conversion description (i.e. the same description is used for
+    conversion to and from Unicode).

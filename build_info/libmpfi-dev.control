@@ -1,0 +1,29 @@
+Package: libmpfi-dev
+Version: @DEB_LIBMPFI_V@
+Architecture: @DEB_ARCH@
+Maintainer: @DEB_MAINTAINER@
+Depends: libmpfr6, libgmp10
+Section: devel
+Priority: optional
+Homepage: https://gitlab.inria.fr/mpfi/mpfi
+Description: multiple precision floating-point interval computation library -- libdev
+    This package provides a C library of functions for interval arithmetic
+    computations with arbitrary precision.
+    .
+    The basic principle of interval arithmetic consists in enclosing every number
+    by an interval containing it and being representable by machine numbers: for
+    instance it can be stored as its lower and upper endpoints and these bounds
+    are machine numbers, or as a centre and a radius which are machine numbers.
+    .
+    The arithmetic operations are extended for interval operands in such a way
+    that the exact result of the operation belongs to the computed interval.
+    .
+    The purpose of an arbitrary precision interval arithmetic is on the one hand
+    to get guaranteed results, thanks to interval computation, and on the other
+    hand to obtain accurate results, thanks to multiple precision arithmetic. The
+    MPFI library is built upon MPFR in order to benefit from the correct roundings
+    provided by MPFR. Further advantages of using MPFR are its portability and
+    compliance with the IEEE 754 standard for floating-point arithmetic.
+    .
+    This package provides the static library and symbolic links needed for
+    development.

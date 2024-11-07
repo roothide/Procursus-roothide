@@ -1,0 +1,13 @@
+Package: potrace
+Version: @DEB_POTRACE_V@
+Architecture: @DEB_ARCH@
+Maintainer: @DEB_MAINTAINER@
+Section: devel
+Priority: optional
+Homepage: http://potrace.sourceforge.net/
+Description: development files for potrace library
+    potrace is a utility for tracing a bitmap, which means, transforming
+    a bitmap into a smooth, scalable image.
+    .
+    libpotrace-dev contains header file needed to compile programs that
+    utilize the potrace library.
