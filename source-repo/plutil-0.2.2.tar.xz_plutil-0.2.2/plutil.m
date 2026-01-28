@@ -18,7 +18,7 @@ void WriteMyPropertyListToFile(NSDictionary* plist, NSURL* url)
 {
 	SInt32 error;
 
-	url = [NSURL fileURLWithPath:jbroot(url.path)];
+	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
 
 	CFDataRef data = CFPropertyListCreateData(kCFAllocatorDefault, plist, kCFPropertyListXMLFormat_v1_0, 0, NULL);
 	CFURLWriteDataAndPropertiesToResource((CFURLRef)url, data, NULL, &error);
@@ -38,7 +38,7 @@ Boolean WriteMyPropertyListToXMLFile(NSData *data, NSURL *url)
 {
 	SInt32 errorCode;
 
-	url = [NSURL fileURLWithPath:jbroot(url.path)];
+	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
 
 	return CFURLWriteDataAndPropertiesToResource((CFURLRef)url, (CFDataRef)data, NULL, &errorCode);
 }
@@ -47,7 +47,7 @@ void WriteMyPropertyListToBinaryFile(CFPropertyListRef plist, NSURL *url)
 {
 	CFWriteStreamRef stream;
 
-	url = [NSURL fileURLWithPath:jbroot(url.path)];
+	url = [NSURL fileURLWithPath:jbroot(url.relativePath)];
 
 	stream = CFWriteStreamCreateWithFile(kCFAllocatorDefault, (CFURLRef)url);
 	CFWriteStreamOpen(stream);

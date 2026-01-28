@@ -431,6 +431,7 @@ endif
 	$(call SIGN,lldb-$(LLVM_MAJOR_V),general.xml)
 	$(call SIGN,swift-$(SWIFT_VERSION),general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V),general.xml)
+	$(call SIGN,llvm-$(LLVM_MAJOR_V)-dev,general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V)-runtime,general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V)-linker-tools,general.xml)
 	$(call SIGN,clang-tools-$(LLVM_MAJOR_V),general.xml)

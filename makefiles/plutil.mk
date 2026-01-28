@@ -4,7 +4,7 @@ endif
 
 SUBPROJECTS     += plutil
 PLUTIL_VERSION  := 0.2.2
-DEB_PLUTIL_V    ?= $(PLUTIL_VERSION)+1
+DEB_PLUTIL_V    ?= $(PLUTIL_VERSION)+2
 
 plutil-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://github.com/Diatrus/plutil/releases/download/v$(PLUTIL_VERSION)/plutil-$(PLUTIL_VERSION).tar.xz)
