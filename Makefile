@@ -1006,7 +1006,7 @@ PACK = \
 		done; \
 	done; \
 	if ! grep -q "darwin" <<< "$(MEMO_TARGET)"; then \
-		if ! [ "$(1)" = "libiosexec1" ] || ! [ "$(1)" = "libiosexec-dev" ]; then \
+		if ! [ "$(1)" = "roothide" ] && ! [ "$(1)" = "libiosexec1" ] && ! [ "$(1)" = "libiosexec-dev" ]; then \
 			if find $(BUILD_DIST)/$(1) | xargs file -ib | grep 'x-mach-binary' | head -1 | grep -q 'x-mach-binary'; then \
 				if grep -q '^Depends\:' $(BUILD_DIST)/$(1)/DEBIAN/control; then \
 					sed -i 's/^Depends\:/Depends: libiosexec1 (>= '$${DEB_LIBIOSEXEC_V}'),/' $(BUILD_DIST)/$(1)/DEBIAN/control; \
