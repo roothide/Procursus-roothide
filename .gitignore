@@ -5,6 +5,10 @@ build_work/
 build_dist/
 build_strap/
 
+.dist-cache/
+.source-cache/
+.source-patch/
+
 !.gitkeep
 .DS_Store
 *.p12
