@@ -125,9 +125,11 @@ PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-ios
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
@@ -143,9 +145,32 @@ PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-ios
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?= /var/jb
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?=
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
+MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
+GNU_PREFIX            :=
+ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
+BARE_PLATFORM         := iPhoneOS
+MEMO_DEPLOYMENT       := IPHONEOS_DEPLOYMENT_TARGET=$(IPHONEOS_DEPLOYMENT_TARGET)
+
+else ifeq ($(MEMO_TARGET),iphoneos-arm64-roothide)
+MEMO_ARCH             := arm64
+PLATFORM              := iphoneos
+DEB_ARCH              := iphoneos-arm64e
+GNU_HOST_TRIPLE       := aarch64-apple-darwin
+PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
+RUST_TARGET           := aarch64-apple-ios
+GOLANG_OS             := ios
+LLVM_TARGET           := arm64-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?= /rootfs
+MEMO_PREFIX           ?=
+MEMO_SUB_PREFIX       ?= /usr
+MEMO_ALT_PREFIX       ?= /local
+# MEMO_ALT_PREFIX       ?= $(shell [ "$(CFVER_WHOLE)" -ge 2000 ] || echo /local)
+MEMO_LINK_PREFIX      ?= @loader_path/.jbroot
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
@@ -161,9 +186,32 @@ PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-ios
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64e-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?= /var/jb
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?=
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
+MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
+GNU_PREFIX            :=
+ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
+BARE_PLATFORM         := iPhoneOS
+MEMO_DEPLOYMENT       := IPHONEOS_DEPLOYMENT_TARGET=$(IPHONEOS_DEPLOYMENT_TARGET)
+
+else ifeq ($(MEMO_TARGET),iphoneos-arm64e-roothide)
+MEMO_ARCH             := arm64e
+PLATFORM              := iphoneos
+DEB_ARCH              := iphoneos-arm64e
+GNU_HOST_TRIPLE       := aarch64-apple-darwin
+PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
+RUST_TARGET           := aarch64-apple-ios
+GOLANG_OS             := ios
+LLVM_TARGET           := arm64e-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?= /rootfs
+MEMO_PREFIX           ?=
+MEMO_SUB_PREFIX       ?= /usr
+MEMO_ALT_PREFIX       ?= /local
+# MEMO_ALT_PREFIX       ?= $(shell [ "$(CFVER_WHOLE)" -ge 2000 ] || echo /local)
+MEMO_LINK_PREFIX      ?= @loader_path/.jbroot
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
@@ -179,9 +227,11 @@ PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-ios
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64e-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
@@ -197,9 +247,11 @@ PLATFORM_VERSION_MIN  := -miphoneos-version-min=$(IPHONEOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := armv7-apple-ios
 GOLANG_OS             := ios
 LLVM_TARGET           := armv7-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/iPhoneOS.sdk
@@ -215,9 +267,11 @@ PLATFORM_VERSION_MIN  := -mappletvos-version-min=$(APPLETVOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-tvos
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64-apple-tvos$(APPLETVOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/AppleTVOS.sdk
@@ -233,9 +287,11 @@ PLATFORM_VERSION_MIN  := -mappletvos-version-min=$(APPLETVOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := aarch64-apple-tvos
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64e-apple-tvos$(APPLETVOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/AppleTVOS.sdk
@@ -251,9 +307,11 @@ PLATFORM_VERSION_MIN  := --target=arm64-apple-bridgeos$(BRIDGEOS_DEPLOYMENT_TARG
 RUST_TARGET           := aarch64-apple-bridgeos
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64-apple-bridgeos$(BRIDGEOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/BridgeOS.sdk
@@ -269,9 +327,11 @@ PLATFORM_VERSION_MIN  := -mwatchos-version-min=$(WATCHOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := arm64_32-apple-watchos
 GOLANG_OS             := ios
 LLVM_TARGET           := arm64_32-apple-watchos$(WATCHOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/WatchOS.sdk
@@ -286,9 +346,11 @@ GNU_HOST_TRIPLE       := armv7k-apple-darwin
 PLATFORM_VERSION_MIN  := -mwatchos-version-min=$(WATCHOS_DEPLOYMENT_TARGET)
 RUST_TARGET           := armv7k-apple-watchos
 LLVM_TARGET           := armv7k-apple-watchos$(WATCHOS_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?=
 MEMO_SUB_PREFIX       ?= /usr
 MEMO_ALT_PREFIX       ?= /local
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?= $(MEMO_PREFIX)
 GNU_PREFIX            :=
 ON_DEVICE_SDK_PATH    := $(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/SDKs/WatchOS.sdk
@@ -304,9 +366,11 @@ RUST_TARGET           := $(GNU_HOST_TRIPLE)
 GOLANG_OS             := darwin
 LLVM_TARGET           := arm64e-apple-macos$(MACOSX_DEPLOYMENT_TARGET)
 PLATFORM_VERSION_MIN  := -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?= /opt/procursus
 MEMO_SUB_PREFIX       ?=
 MEMO_ALT_PREFIX       ?=
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?=
 GNU_PREFIX            := g
 ON_DEVICE_SDK_PATH    := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
@@ -322,9 +386,11 @@ RUST_TARGET           := $(GNU_HOST_TRIPLE)
 GOLANG_OS             := darwin
 LLVM_TARGET           := arm64-apple-macos$(MACOSX_DEPLOYMENT_TARGET)
 PLATFORM_VERSION_MIN  := -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?= /opt/procursus
 MEMO_SUB_PREFIX       ?=
 MEMO_ALT_PREFIX       ?=
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?=
 GNU_PREFIX            := g
 ON_DEVICE_SDK_PATH    := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
@@ -340,9 +406,11 @@ RUST_TARGET           := $(GNU_HOST_TRIPLE)
 GOLANG_OS             := darwin
 LLVM_TARGET           := x86_64-apple-macos$(MACOSX_DEPLOYMENT_TARGET)
 PLATFORM_VERSION_MIN  := -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+MEMO_ROOTFS           ?=
 MEMO_PREFIX           ?= /opt/procursus
 MEMO_SUB_PREFIX       ?=
 MEMO_ALT_PREFIX       ?=
+MEMO_LINK_PREFIX      ?= $(MEMO_PREFIX)
 MEMO_LAUNCHCTL_PREFIX ?=
 GNU_PREFIX            := g
 ON_DEVICE_SDK_PATH    := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
@@ -492,7 +560,7 @@ RANLIB_FOR_BUILD := $(shell command -v ranlib)
 STRIP_FOR_BUILD := $(shell command -v strip)
 export CC_FOR_BUILD CPP_FOR_BUILD CXX_FOR_BUILD AR_FOR_BUILD
 
-DEB_MAINTAINER    ?= Procursus Team <support@procurs.us>
+DEB_MAINTAINER    ?= roothider <roothideDev@twitter>
 MEMO_REPO_URI     ?= https://apt.procurs.us
 MEMO_PGP_SIGN_KEY ?= C59F3798A305ADD7E7E6C7256430292CF9551B0E
 CODESIGN_IDENTITY ?= -
@@ -837,12 +905,12 @@ AFTER_BUILD = \
 	else \
 		pkg="$@"; \
 	fi; \
-	if [ ! -z "$(MEMO_PREFIX)" ] && [ -d "$(BUILD_STAGE)/$$pkg/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)" ]; then \
+	if [ ! -z "$(MEMO_LINK_PREFIX)" ] && [ -d "$(BUILD_STAGE)/$$pkg/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)" ]; then \
 		rm -f $(BUILD_STAGE)/$$pkg/._lib_cache && touch $(BUILD_STAGE)/$$pkg/._lib_cache; \
 		for file in $$(find $(BUILD_STAGE)/$$pkg -type f -exec sh -c "file -ib '{}' | grep -q 'x-mach-binary; charset=binary'" \; -print); do \
 			if [ $${file\#\#*.} != "a" ] && [ $${file\#\#*.} != "dSYM" ]; then \
 				INSTALL_NAME=$$($(OTOOL) -D $$file | grep -v -e ":$$" -e "^Archive :" | head -n1); \
-				if [ ! -z "$$INSTALL_NAME" ]; then \
+				if [ ! -z "$$INSTALL_NAME" ] && ( ( echo "$$INSTALL_NAME" | grep -q ^$(MEMO_PREFIX)/ ) || ! ( echo "$$INSTALL_NAME" | grep -q / ) ); then \
 					$(I_N_T) -id @rpath/$$(basename $$INSTALL_NAME) $$file; \
 					echo "$$INSTALL_NAME" >> $(BUILD_STAGE)/$$pkg/._lib_cache; \
 				fi; \
@@ -854,7 +922,8 @@ AFTER_BUILD = \
 			if [ "$(RELATIVE_RPATH)" = "1" ]; then \
 				$(I_N_T) -add_rpath "@loader_path/$$(realpath --relative-to=$$(dirname $$file) $(BUILD_STAGE)/$$pkg/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX))/lib" $$file; \
 			else \
-				$(I_N_T) -add_rpath "$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib" $$file; \
+				$(I_N_T) -add_rpath "$(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib" $$file; \
+				$(I_N_T) -add_rpath "$(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)$(MEMO_ALT_PREFIX)/lib" $$file; \
 				if [ ! -z "$(3)" ]; then \
 					$(I_N_T) -add_rpath "$(3)" $$file; \
 				fi; \
@@ -863,6 +932,9 @@ AFTER_BUILD = \
 				cat $(BUILD_STAGE)/$$pkg/._lib_cache | while read line; do \
 					$(I_N_T) -change $$line @rpath/$$(basename $$line) $$file; \
 				done; \
+			fi; \
+			if [ ! -z "$(findstring roothide,$(MEMO_TARGET))" ];then \
+				if [ "$(4)" != "novroot" ]; then symredirect $$file || exit 1; fi; \
 			fi; \
 			if [ "$(DEBUG)" != "1" ]; then $(STRIP) -x $$file; fi \
 		fi; \
@@ -918,7 +990,7 @@ PACK = \
 	mkdir -p $(BUILD_DIST)/$(1)/DEBIAN; \
 	for i in control postinst preinst postrm prerm extrainst_ conffiles triggers; do \
 		for n in $$i $$i.$(PLATFORM) $$i.$(PLATFORM); do \
-			if [ -f "$(BUILD_INFO)/$(1).$$n.rootless" ] && [ ! -z "$(findstring rootless,$(MEMO_TARGET))" ]; then \
+			if [ -f "$(BUILD_INFO)/$(1).$$n.rootless" ] && [ ! -z "$(filter %-rootless %-roothide,$(MEMO_TARGET))" ]; then \
 				sed -e 's|@MEMO_PREFIX@|$(MEMO_PREFIX)|g' \
 					-e 's|@MEMO_SUB_PREFIX@|$(MEMO_SUB_PREFIX)|g' \
 					-e 's|@MEMO_ALT_PREFIX@|$(MEMO_ALT_PREFIX)|g' \
@@ -944,7 +1016,7 @@ PACK = \
 		done; \
 	done; \
 	if ! grep -q "darwin" <<< "$(MEMO_TARGET)"; then \
-		if ! [ "$(1)" = "libiosexec1" ] || ! [ "$(1)" = "libiosexec-dev" ]; then \
+		if ! [ "$(1)" = "roothide" ] && ! [ "$(1)" = "libiosexec1" ] && ! [ "$(1)" = "libiosexec-dev" ]; then \
 			if find $(BUILD_DIST)/$(1) | xargs file -ib | grep 'x-mach-binary' | head -1 | grep -q 'x-mach-binary'; then \
 				if grep -q '^Depends\:' $(BUILD_DIST)/$(1)/DEBIAN/control; then \
 					sed -i 's/^Depends\:/Depends: libiosexec1 (>= '$${DEB_LIBIOSEXEC_V}'),/' $(BUILD_DIST)/$(1)/DEBIAN/control; \
@@ -956,6 +1028,15 @@ PACK = \
 	fi; \
 	find $(BUILD_DIST)/$(1)/$(MEMO_PREFIX)/etc -type f -printf '$(MEMO_PREFIX)/etc/%P\n' | LC_ALL=C sort >> $(BUILD_DIST)/$(1)/DEBIAN/conffiles; \
 	[ -s $(BUILD_DIST)/$(1)/DEBIAN/conffiles ] || rm $(BUILD_DIST)/$(1)/DEBIAN/conffiles; \
+	if grep -q "roothide" <<< "$(MEMO_TARGET)"; then \
+		if ! [ "$(1)" = "roothide" ]; then \
+			if grep -q '^Depends\:' $(BUILD_DIST)/$(1)/DEBIAN/control; then \
+				sed -i 's/^Depends\:/Depends: roothide (>= '$${DEB_ROOTHIDE_V}'),/' $(BUILD_DIST)/$(1)/DEBIAN/control; \
+			else \
+				echo 'Depends: roothide (>= '$${DEB_ROOTHIDE_V}')' >> $(BUILD_DIST)/$(1)/DEBIAN/control; \
+			fi; \
+		fi; \
+	fi; \
 	sed -i '$$a\' $(BUILD_DIST)/$(1)/DEBIAN/control; \
 	cd $(BUILD_DIST)/$(1) && find . -type f ! -regex '.*.hg.*' ! -regex '.*?debian-binary.*' ! -regex '.*?DEBIAN.*' -printf '"%P" ' | xargs md5sum > $(BUILD_DIST)/$(1)/DEBIAN/md5sums; \
 	$(FAKEROOT) chmod 0755 $(BUILD_DIST)/$(1)/DEBIAN/*; \
@@ -1215,6 +1296,9 @@ bootstrap:: strapprojects
 		PKGS="apt/apt_*.deb brotli/libbrotli1_*.deb cacerts/ca-certificates_*.deb coreutils/coreutils_*.deb darwintools/darwintools_*.deb dpkg/dpkg_*.deb gnupg/gpgv_*.deb apt/libapt-pkg6.0_*.deb libassuan/libassuan0_*.deb libffi/libffi8_*.deb libgcrypt/libgcrypt20_*.deb libgmp10/libgmp10_*.deb gnutls/libgnutls30_*.deb libgpg-error/libgpg-error0_*.deb nettle/libhogweed6_*.deb libidn2/libidn2-0_*.deb gettext/libintl8_*.deb lz4/liblz4-1_*.deb xz/liblzma5_*.deb libmd/libmd0_*.deb nettle/libnettle8_*.deb npth/libnpth0_*.deb p11-kit/libp11-kit0_*.deb openssl/libssl3_*.deb libtasn1/libtasn1-6_*.deb libunistring/libunistring5_*.deb xxhash/libxxhash0_*.deb zlib-ng/libz-ng2_*.deb zstd/libzstd1_*.deb keyring/procursus-keyring_*.deb tar/tar_*.deb"; \
 	else \
 		PKGS="apt/apt_*.deb base/base_*.deb bash/bash_*.deb brotli/libbrotli1_*.deb cacerts/ca-certificates_*.deb chariz-keyring/chariz-keyring_*.deb coreutils/coreutils_*.deb darwintools/darwintools_*.deb dash/dash_*.deb debianutils/debianutils_*.deb diffutils/diffutils_*.deb diskdev-cmds/diskdev-cmds_*.deb dpkg/dpkg_*.deb essential/essential_*.deb file-cmds/file-cmds_*.deb findutils/findutils_*.deb firmware-sbin/firmware-sbin_*.deb gnupg/gpgv_*.deb grep/grep_*.deb havoc-keyring/havoc-keyring_*.deb launchctl/launchctl_*.deb apt/libapt-pkg6.0_*.deb libassuan/libassuan0_*.deb libxcrypt/libcrypt2_*.deb dimentio/libdimentio0_*.deb libedit/libedit0_*.deb libffi/libffi8_*.deb libgcrypt/libgcrypt20_*.deb libgmp10/libgmp10_*.deb gnutls/libgnutls30_*.deb libgpg-error/libgpg-error0_*.deb nettle/libhogweed6_*.deb libidn2/libidn2-0_*.deb gettext/libintl8_*.deb libiosexec/libiosexec1_*.deb libkrw/libkrw0_*.deb lz4/liblz4-1_*.deb xz/liblzma5_*.deb libmd/libmd0_*.deb ncurses/libncursesw6_*.deb nettle/libnettle8_*.deb npth/libnpth0_*.deb p11-kit/libp11-kit0_*.deb pam-modules/libpam-modules_*.deb openpam/libpam2_*.deb pcre/libpcre1_*.deb pcre2/libpcre2-8-0_*.deb readline/libreadline8_*.deb libtasn1/libtasn1-6_*.deb libunistring/libunistring5_*.deb xxhash/libxxhash0_*.deb zlib-ng/libz-ng2_*.deb zstd/libzstd1_*.deb ncurses/ncurses-bin_*.deb ncurses/ncurses-term_*.deb openssh/openssh-server_*.deb openssh/openssh-sftp-server_*.deb openssh/openssh-client_*.deb openssl/libssl3_*.deb keyring/procursus-keyring_*.deb profile.d/profile.d_*.deb sed/sed_*.deb shell-cmds/shell-cmds_*.deb shshd/shshd_*.deb snaputil/snaputil_*.deb sudo/sudo_*.deb system-cmds/system-cmds_*.deb tar/tar_*.deb uikittools/uikittools_*.deb vi/vi_*.deb zsh/zsh_*.deb"; \
+        if [ -n "$(findstring roothide,$(MEMO_TARGET))" ]; then \
+            PKGS="roothide/roothide_*.deb $$PKGS"; \
+        fi; \
 	fi; \
 	cd $(BUILD_STRAP); for DEB in $$PKGS; do \
 		if [ ! -f $$DEB ]; then \
@@ -1231,7 +1315,7 @@ bootstrap:: strapprojects
 		echo -e "Status: install ok installed\n" >> $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/Library/dpkg/status; \
 		rm -rf $(BUILD_STRAP)/strap/DEBIAN; \
 	done
-ifeq ($(MEMO_PREFIX),)
+ifeq ($(MEMO_LINK_PREFIX),)
 	rmdir --ignore-fail-on-non-empty $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/{Applications,bin,dev,etc/{default,profile.d},Library/{Frameworks,LaunchAgents,LaunchDaemons,Preferences,Ringtones,Wallpaper},sbin,System/Library/{Extensions,Fonts,Frameworks,Internet\ Plug-Ins,KeyboardDictionaries,LaunchDaemons,PreferenceBundles,PrivateFrameworks,SystemConfiguration,VideoDecoders},System/Library,System,tmp,$(MEMO_SUB_PREFIX)/{bin,games,include,sbin,share/{dict,misc}},var/{backups,cache,db,lib/misc,$(MEMO_ALT_PREFIX),lock,logs,mobile/{Library/Preferences,Library,Media},mobile,msgs,preferences,root/Media,root,run,spool,tmp,vm}}
 	mkdir -p $(BUILD_STRAP)/strap/private
 	rm -f $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/{sbin/{fsck,fsck_apfs,fsck_exfat,fsck_hfs,fsck_msdos,launchd,mount,mount_apfs,newfs_apfs,newfs_hfs,pfctl},$(MEMO_SUB_PREFIX)/sbin/{BTAvrcp,BTLEServer,BTMap,BTPbap,BlueTool,WirelessRadioManagerd,absd,addNetworkInterface,aslmanager,bluetoothd,cfprefsd,distnoted,filecoordinationd,ioreg,ipconfig,mDNSResponder,mDNSResponderHelper,mediaserverd,notifyd,nvram,pppd,racoon,rtadvd,scutil,spindump,syslogd,wifid}}
@@ -1286,7 +1370,7 @@ endif
 	echo "********** Successfully built bootstrap with **********"; \
 	echo "$(STRAPPROJECTS)"; \
 	echo "$(BUILD_STRAP)/$${BOOTSTRAP}"
-else # ($(MEMO_PREFIX),)
+else # ($(MEMO_LINK_PREFIX),)
 	chmod 0775 $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/Library
 	mkdir -p $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/etc/apt/preferences.d
 	cp $(BUILD_INFO)/procursus.preferences $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/etc/apt/preferences.d/procursus
@@ -1314,7 +1398,7 @@ endif
 	else \
 		sed -e '/@SSH_STRAP@/d' -e 's|@MEMO_PREFIX@|$(MEMO_PREFIX)|g' -e 's|@MEMO_SUB_PREFIX@|$(MEMO_SUB_PREFIX)|g' $(BUILD_MISC)/prep_bootstrap.sh > $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/prep_bootstrap.sh; \
 	fi
-	if [ ! -z "$(findstring rootless,$(MEMO_TARGET))" ]; then \
+	if [ ! -z "$(filter %-rootless %-roothide,$(MEMO_TARGET))" ]; then \
 		sed -i -e 's/@ROOTLESS@//' $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/prep_bootstrap.sh; \
 	else \
 		sed -i -e '/@ROOTLESS@/d' $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/prep_bootstrap.sh; \
@@ -1325,6 +1409,29 @@ endif
 	$$FAKEROOT chown 0:0 $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/var/root; \
 	$$FAKEROOT chown 501:501 $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/var/mobile; \
 	$$FAKEROOT chmod 1777 $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/tmp; \
+	if [ ! -z "$(findstring roothide,$(MEMO_TARGET))" ]; then \
+		ln -s . $(BUILD_STRAP)/strap/$(MEMO_PREFIX)/.jbroot ; \
+		while read link; do \
+			target=$$(readlink "$$link"); \
+			if echo "$$target" | grep -q ^$(MEMO_ROOTFS)/ ; then \
+				rm "$$link" && ln -s $${target#$(MEMO_ROOTFS)} "$$link" ; \
+			elif echo "$$target" | grep -q ^$(MEMO_PREFIX)/ ; then \
+				rm "$$link" && ln -s .jbroot$${target#$(MEMO_PREFIX)} "$$link" ; \
+				dir=$$(dirname "$$link"); \
+				if [ ! -L "$$dir/.jbroot" ]; then \
+					ln -s $$(realpath --relative-to="$$dir" $(BUILD_STRAP)/strap/$(MEMO_PREFIX))/.jbroot "$$dir/.jbroot" ; \
+				fi; \
+			fi; \
+		done <<<  $$(find $(BUILD_STRAP)/strap/$(MEMO_PREFIX) -type l); \
+		while read file; do \
+			if [ $${file##*.} != "a" ] && [ $${file##*.} != "dSYM" ]; then \
+				dir=$$(dirname "$$file"); \
+				if [ ! -L "$$dir/.jbroot" ]; then \
+					ln -s $$(realpath --relative-to="$$dir" $(BUILD_STRAP)/strap/$(MEMO_PREFIX))/.jbroot "$$dir/.jbroot" ; \
+				fi; \
+			fi; \
+		done <<<  $$(find $(BUILD_STRAP)/strap/$(MEMO_PREFIX) -type f -exec sh -c "file -ib '{}' | grep -q 'x-mach-binary; charset=binary'" \; -print); \
+	fi; \
 	cd $(BUILD_STRAP)/strap && $$FAKEROOT tar -cf ../bootstrap.tar .
 	@if [[ "$(SSH_STRAP)" = 1 ]]; then \
 		BOOTSTRAP=bootstrap-ssh.tar.zst; \
@@ -1337,7 +1444,7 @@ endif
 	echo "********** Successfully built bootstrap with **********"; \
 	echo "$(STRAPPROJECTS)"; \
 	echo "$(BUILD_STRAP)/$${BOOTSTRAP}"
-endif # ($(MEMO_PREFIX),)
+endif # ($(MEMO_LINK_PREFIX),)
 
 %-package: FAKEROOT=fakeroot -i $(BUILD_STAGE)/.fakeroot_$$(echo $@ | sed 's/\(.*\)-package/\1/') -s $(BUILD_STAGE)/.fakeroot_$$(echo $@ | sed 's/\(.*\)-package/\1/') --
 %-package: .SHELLFLAGS=-O extglob -c
@@ -1552,9 +1659,16 @@ endif
 	@sed -E /'__API_UNAVAILABLE'/d < $(TARGET_SYSROOT)/usr/include/pthread.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/pthread.h
 	@sed -i 's/__API_UNAVAILABLE(.*)//g' $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/spawn.h
 	@sed -i -E s/'__API_UNAVAILABLE\(.*\)'// $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/IOKit/IOKitLib.h
+
+ifneq (,$(findstring roothide,$(MEMO_TARGET))) # also replace /sbin,/usr/sbin
+	@sed -E -e '\|/var/tmp|! s|"/var|"$(MEMO_PREFIX)/var|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:/bin|/usr/bin:/bin:$(MEMO_ROOTFS)/usr/bin:$(MEMO_ROOTFS)/bin|g' -e 's|/usr/sbin:/sbin|/usr/sbin:/sbin:$(MEMO_ROOTFS)/usr/sbin:$(MEMO_ROOTFS)/sbin|g' < $(TARGET_SYSROOT)/usr/include/pwd.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/pwd.h
+	@sed -E -e '\|/var/tmp|! s|"/var|"$(MEMO_PREFIX)/var|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:/bin|/usr/bin:/bin:$(MEMO_ROOTFS)/usr/bin:$(MEMO_ROOTFS)/bin|g' -e 's|/usr/sbin:/sbin|/usr/sbin:/sbin:$(MEMO_ROOTFS)/usr/sbin:$(MEMO_ROOTFS)/sbin|g' < $(TARGET_SYSROOT)/usr/include/grp.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/grp.h
+	@sed -E -e 's|"/var|"$(MEMO_PREFIX)/var|g' -e 's|"/tmp|"$(MEMO_PREFIX)/tmp|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:/bin|/usr/bin:/bin:$(MEMO_ROOTFS)/usr/bin:$(MEMO_ROOTFS)/bin|g' -e 's|/usr/sbin:/sbin|/usr/sbin:/sbin:$(MEMO_ROOTFS)/usr/sbin:$(MEMO_ROOTFS)/sbin|g' < $(TARGET_SYSROOT)/usr/include/paths.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/paths.h
+else
 	@sed -E -e '\|/var/tmp|! s|"/var|"$(MEMO_PREFIX)/var|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:|$(MEMO_PREFIX)/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:/usr/bin:|g' -e 's|/usr/sbin:|$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:/usr/sbin:|g' < $(TARGET_SYSROOT)/usr/include/pwd.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/pwd.h
 	@sed -E -e '\|/var/tmp|! s|"/var|"$(MEMO_PREFIX)/var|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:|$(MEMO_PREFIX)/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:/usr/bin:|g' -e 's|/usr/sbin:|$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:/usr/sbin:|g' < $(TARGET_SYSROOT)/usr/include/grp.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/grp.h
 	@sed -E -e 's|"/var|"$(MEMO_PREFIX)/var|g' -e 's|"/tmp|"$(MEMO_PREFIX)/tmp|g' -e '\|/bin:|! s|/usr|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)|g' -e '\|/bin:|! s|"/bin|"$(MEMO_PREFIX)/bin|g' -e '\|/bin:|! s|"/sbin|"$(MEMO_PREFIX)/sbin|g' -e 's|/etc|$(MEMO_PREFIX)/etc|g' -e 's|/usr/bin:|$(MEMO_PREFIX)/bin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin:/usr/bin:|g' -e 's|/usr/sbin:|$(MEMO_PREFIX)/sbin:$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/sbin:/usr/sbin:|g' < $(TARGET_SYSROOT)/usr/include/paths.h > $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/paths.h
+endif
 
 	@#Patch downloaded headers
 	@sed -i '1s|^|#include <Security/cssmapi.h>\n#include <Security/SecKeychain.h>\n|' $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/Security/SecKeychainPriv.h
@@ -1573,6 +1687,12 @@ ifneq ($(MEMO_NO_IOSEXEC),1)
 	@sed -i '1s/^/#include <libiosexec.h>\n/' $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/{unistd,pwd,grp}.h
 	@grep -q libiosexec.h $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/spawn.h || sed -i '1s/^/#include <libiosexec.h>\n/' $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/spawn.h
 endif
+
+	@# Setup roothide
+	@mkdir -p $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/roothide
+	@cp -af $(BUILD_MISC)/roothide/roothide.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/
+	@cp -af $(BUILD_MISC)/roothide/libroothide.tbd $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/
+
 endif
 
 ifneq ($(MEMO_QUIET),1)
