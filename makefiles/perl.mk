@@ -7,7 +7,7 @@ PERL_MAJOR   := 5.32
 PERL_VERSION := $(PERL_MAJOR).1
 PERL_API_V   := $(PERL_MAJOR).0
 PERL_CROSS_V := 1.3.5
-DEB_PERL_V   ?= $(PERL_VERSION)
+DEB_PERL_V   ?= $(PERL_VERSION)-1
 
 export PERL_MAJOR
 
@@ -75,7 +75,7 @@ perl: perl-setup
 		DESTDIR=$(BUILD_STAGE)/perl
 	$(LN_S) $(PERL_MAJOR) $(BUILD_STAGE)/perl/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/perl5/$(PERL_VERSION)
 	chmod -R u+w $(BUILD_STAGE)/perl/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/perl5/$(PERL_MAJOR)
-	$(call AFTER_BUILD)
+	$(call AFTER_BUILD,,,$(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/lib/perl5/$(PERL_MAJOR)/CORE)
 endif
 
 perl-package: perl-stage
