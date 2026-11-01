@@ -13,6 +13,9 @@ DEB_ZSH_V     ?= $(ZSH_VERSION)
 zsh-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://www.zsh.org/pub/zsh-$(ZSH_VERSION).tar.xz{$(comma).asc})
 	$(call EXTRACT_TAR,zsh-$(ZSH_VERSION).tar.xz,zsh-$(ZSH_VERSION),zsh)
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+	sed -i 's/ -flat_namespace//g' $(BUILD_WORK)/zsh/configure
+endif
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 ZSH_CONFIGURE_ARGS := --enable-etcdir=$(MEMO_PREFIX)/etc \
 		zsh_cv_path_utmpx=/var/run/utmpx \
