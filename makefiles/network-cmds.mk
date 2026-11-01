@@ -26,7 +26,10 @@ network-cmds-setup: setup
 	$(LN_S) $(BUILD_WORK)/network-cmds/include/{,System}
 
 	@$(call DOWNLOAD_FILES,$(BUILD_WORK)/network-cmds/include/net, \
-		https://raw.githubusercontent.com/apple-oss-distributions/xnu/xnu-10002.41.9/bsd/net/{content_filter$(comma)packet_mangler$(comma)pktap$(comma)net_api_stats$(comma)if_ports_used$(comma)if_bridgevar$(comma)ntstat$(comma)if_llreach$(comma)route$(comma)route_private$(comma)if$(comma)if_private$(comma)if_var$(comma)if_var_private$(comma)if_mib$(comma)if_arp$(comma)if_media$(comma)radix$(comma)net_perf$(comma)if_6lowpan_var$(comma)if_bond_var$(comma)network_agent$(comma)if_fake_var$(comma)if_vlan_var$(comma)if_fake_var$(comma)bpf$(comma)lacp$(comma)if_bond_internal}.h)
+		https://raw.githubusercontent.com/apple-oss-distributions/xnu/xnu-10002.41.9/bsd/net/{content_filter$(comma)packet_mangler$(comma)pktap$(comma)net_api_stats$(comma)if_ports_used$(comma)if_bridgevar$(comma)ntstat$(comma)if_llreach$(comma)route$(comma)route_private$(comma)if$(comma)if_private$(comma)if_var$(comma)if_var_private$(comma)if_mib$(comma)if_arp$(comma)if_media$(comma)radix$(comma)net_perf$(comma)if_bond_var$(comma)network_agent$(comma)if_fake_var$(comma)if_vlan_var$(comma)if_fake_var$(comma)bpf$(comma)lacp$(comma)if_bond_internal}.h)
+	# Newer XNU tags omit this legacy header; use Apple's pinned historical copy.
+	@$(call DOWNLOAD_FILES,$(BUILD_WORK)/network-cmds/include/net, \
+		https://raw.githubusercontent.com/apple-oss-distributions/xnu/xnu-7195.141.2/bsd/net/if_6lowpan_var.h)
 	@$(call DOWNLOAD_FILES,$(BUILD_WORK)/network-cmds/include/net/pktsched, \
 		https://raw.githubusercontent.com/apple-oss-distributions/xnu/xnu-10002.41.9/bsd/net/pktsched/pktsched{$(comma)_{cbq$(comma)fairq$(comma)fq_codel$(comma)hfsc$(comma)netem$(comma)priq$(comma)rmclass$(comma)fq_codel}}.h)
 	@$(call DOWNLOAD_FILES,$(BUILD_WORK)/network-cmds/include/net/classq, \

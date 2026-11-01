@@ -7,7 +7,7 @@ LIBPIPELINE_VERSION := 1.5.7
 DEB_LIBPIPELINE_V   ?= $(LIBPIPELINE_VERSION)
 
 libpipeline-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://mirrors.sarata.com/non-gnu/libpipeline/libpipeline-$(LIBPIPELINE_VERSION).tar.gz{$(comma).asc})
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://download.savannah.gnu.org/releases/libpipeline/libpipeline-$(LIBPIPELINE_VERSION).tar.gz{$(comma).asc})
 	$(call PGP_VERIFY,libpipeline-$(LIBPIPELINE_VERSION).tar.gz,asc)
 	$(call EXTRACT_TAR,libpipeline-$(LIBPIPELINE_VERSION).tar.gz,libpipeline-$(LIBPIPELINE_VERSION),libpipeline)
 

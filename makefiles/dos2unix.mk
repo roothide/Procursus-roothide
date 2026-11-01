@@ -7,7 +7,7 @@ DOS2UNIX_VERSION := 7.5.2
 DEB_DOS2UNIX_V   ?= $(DOS2UNIX_VERSION)
 
 dos2unix-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://waterlan.home.xs4all.nl/dos2unix/dos2unix-$(DOS2UNIX_VERSION).tar.gz{$(comma).asc})
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://master.dl.sourceforge.net/project/dos2unix/dos2unix/$(DOS2UNIX_VERSION)/dos2unix-$(DOS2UNIX_VERSION).tar.gz{$(comma).asc})
 	$(call PGP_VERIFY,dos2unix-$(DOS2UNIX_VERSION).tar.gz,asc)
 	$(call EXTRACT_TAR,dos2unix-$(DOS2UNIX_VERSION).tar.gz,dos2unix-$(DOS2UNIX_VERSION),dos2unix)
 

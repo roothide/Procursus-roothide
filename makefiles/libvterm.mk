@@ -7,8 +7,8 @@ LIBVTERM_VERSION := 0.3.3
 DEB_LIBVTERM_V   ?= $(LIBVTERM_VERSION)
 
 libvterm-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),http://deb.debian.org/debian/pool/main/libv/libvterm/libvterm_$(LIBVTERM_VERSION).orig.tar.gz)
-	$(call EXTRACT_TAR,libvterm_$(LIBVTERM_VERSION).orig.tar.gz,libvterm-$(LIBVTERM_VERSION),libvterm)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://launchpad.net/libvterm/trunk/v0.3/+download/libvterm-$(LIBVTERM_VERSION).tar.gz)
+	$(call EXTRACT_TAR,libvterm-$(LIBVTERM_VERSION).tar.gz,libvterm-$(LIBVTERM_VERSION),libvterm)
 	mkdir -p $(BUILD_WORK)/libvterm/libtool
 	echo -e "AC_INIT([dummy],[1.0])\n\
 LT_INIT\n\

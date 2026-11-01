@@ -9,7 +9,7 @@ DEBIAN_INETUTILS_V := 2.5-4
 
 inetutils-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://ftpmirror.gnu.org/inetutils/inetutils-$(INETUTILS_VERSION).tar.xz{$(comma).sig})
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://deb.debian.org/debian/pool/main/i/inetutils/inetutils_$(DEBIAN_INETUTILS_V).debian.tar.xz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://snapshot.debian.org/archive/debian/20240502T204202Z/pool/main/i/inetutils/inetutils_$(DEBIAN_INETUTILS_V).debian.tar.xz)
 	$(call PGP_VERIFY,inetutils-$(INETUTILS_VERSION).tar.xz)
 	$(call EXTRACT_TAR,inetutils-$(INETUTILS_VERSION).tar.xz,inetutils-$(INETUTILS_VERSION),inetutils)
 	$(call EXTRACT_TAR,inetutils_$(DEBIAN_INETUTILS_V).debian.tar.xz,debian,inetutils/debian)

@@ -48,7 +48,7 @@ ifeq ($(MEMO_ARCH),arm64)
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://www.rarlab.com/rar/rarmacos-arm-$(RAR_BUILD).tar.gz)
 	tar -C $(BUILD_WORK) -xf $(BUILD_SOURCE)/rarmacos-arm-$(RAR_BUILD).tar.gz
 endif # ifeq ($(MEMO_ARCH),arm64)
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),http://deb.debian.org/debian/pool/non-free/r/rar/rar_$(DEBIAN_RAR_V).debian.tar.xz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://snapshot.debian.org/archive/debian/20240305T153834Z/pool/non-free/r/rar/rar_$(DEBIAN_RAR_V).debian.tar.xz)
 	tar -C $(BUILD_WORK)/rar -xJf $(BUILD_SOURCE)/rar_$(DEBIAN_RAR_V).debian.tar.xz
 	sed -e 's|@MEMO_PREFIX@|$(MEMO_PREFIX)|g' -e 's|@MEMO_SUB_PREFIX@|$(MEMO_SUB_PREFIX)|g' < $(BUILD_MISC)/rar/open_hook.c > $(BUILD_WORK)/rar/open_hook.c
 	mkdir -p $(BUILD_STAGE)/rar/$(MEMO_PREFIX){$(MEMO_SUB_PREFIX)/{bin,lib,share/man/man1},/etc}

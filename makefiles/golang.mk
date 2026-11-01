@@ -10,7 +10,7 @@ DEB_GOLANG_V          ?= $(GOLANG_VERSION)
 
 golang-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://go.dev/dl/go$(GOLANG_VERSION).src.tar.gz)
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://deb.debian.org/debian/pool/main/g/golang-defaults/golang-defaults_$(DEBIAN_GOLANG_VERSION).tar.xz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://snapshot.debian.org/archive/debian/20240306T150558Z/pool/main/g/golang-defaults/golang-defaults_$(DEBIAN_GOLANG_VERSION).tar.xz)
 	$(call EXTRACT_TAR,go$(GOLANG_VERSION).src.tar.gz,go,golang)
 	$(call EXTRACT_TAR,golang-defaults_$(DEBIAN_GOLANG_VERSION).tar.xz,golang-defaults-$(DEBIAN_GOLANG_VERSION),golang/debian)
 	if [ ! -f $(BUILD_WORK)/golang/src/syscall/zsyscall_ios_arm64.go ]; then \

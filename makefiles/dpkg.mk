@@ -7,7 +7,7 @@ DPKG_VERSION   := 1.22.6
 DEB_DPKG_V     ?= $(DPKG_VERSION)
 
 dpkg-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://deb.debian.org/debian/pool/main/d/dpkg/dpkg_$(DPKG_VERSION).tar.xz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://snapshot.debian.org/archive/debian/20240401T000000Z/pool/main/d/dpkg/dpkg_$(DPKG_VERSION).tar.xz)
 	$(call EXTRACT_TAR,dpkg_$(DPKG_VERSION).tar.xz,dpkg-$(DPKG_VERSION),dpkg)
 	$(call DO_PATCH,dpkg,dpkg,-p1)
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
