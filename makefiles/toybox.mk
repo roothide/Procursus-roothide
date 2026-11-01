@@ -19,7 +19,7 @@ toybox-setup: setup
 	sed -i 's|UT_LINESIZE|_UTX_LINESIZE|g' $(BUILD_WORK)/toybox/toys/pending/last.c
 	sed -i '1 i\#define LOGIN_NAME_MAX 256' $(BUILD_WORK)/toybox/toys/pending/{user,group}add.c
 	sed -i -e 's/-Wl,--gc-sections//g' -e 's/-Wl,--as-needed//g' $(BUILD_WORK)/toybox/configure
-ifneq (,$(findstring rootless,$(MEMO_TARGET)))
+ifneq (,$(filter %-rootless %-roothide,$(MEMO_TARGET)))
 	sed -i -e 's|"/etc|"$(MEMO_PREFIX)/etc|g' -e 's|"/var|"$(MEMO_PREFIX)/var|g' $(BUILD_WORK)/toybox/toys/pending/{useradd,userdel,crontab,crond,last,telnetd,init}.c
 endif
 	sed -i -e 's|/usr|$(MEMO_PREIFX)$(MEMO_SUB_PREFIX)|g' $(BUILD_WORK)/toybox/toys/posix/file.c
