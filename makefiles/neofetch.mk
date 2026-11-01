@@ -7,7 +7,9 @@ NEOFETCH_VERSION := 7.3.11
 DEB_NEOFETCH_V   ?= $(NEOFETCH_VERSION)
 
 neofetch-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_WORK)/neofetch,https://github.com/hykilpikonna/hyfetch/raw/neofetch-$(NEOFETCH_VERSION)/neofetch{$(comma).1})
+	$(call DOWNLOAD_FILES,$(BUILD_WORK)/neofetch, \
+		https://raw.githubusercontent.com/hykilpikonna/hyfetch/neofetch-$(NEOFETCH_VERSION)/neofetch \
+		https://raw.githubusercontent.com/hykilpikonna/hyfetch/neofetch-$(NEOFETCH_VERSION)/docs/neofetch.1)
 	mkdir -p $(BUILD_STAGE)/neofetch/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/{bin,share/man/man1}
 	sed -e '31s|=.*|="$(DEB_NEOFETCH_V)"|' -i $(BUILD_WORK)/neofetch/neofetch
 

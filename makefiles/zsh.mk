@@ -11,7 +11,7 @@ ZSH_VERSION   := 5.9
 DEB_ZSH_V     ?= $(ZSH_VERSION)
 
 zsh-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://www.zsh.org/pub/zsh-$(ZSH_VERSION).tar.xz{$(comma).asc})
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://www.zsh.org/pub/old/zsh-$(ZSH_VERSION).tar.xz{$(comma).asc})
 	$(call EXTRACT_TAR,zsh-$(ZSH_VERSION).tar.xz,zsh-$(ZSH_VERSION),zsh)
 ifneq (,$(findstring roothide,$(MEMO_TARGET)))
 	sed -i 's/ -flat_namespace//g' $(BUILD_WORK)/zsh/configure

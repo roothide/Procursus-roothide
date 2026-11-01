@@ -7,7 +7,7 @@ MOSH_VERSION := 1.3.2
 DEB_MOSH_V   ?= $(MOSH_VERSION)-5
 
 mosh-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://mosh.org/mosh-$(MOSH_VERSION).tar.gz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://github.com/mobile-shell/mosh/releases/download/mosh-$(MOSH_VERSION)/mosh-$(MOSH_VERSION).tar.gz)
 	$(call EXTRACT_TAR,mosh-$(MOSH_VERSION).tar.gz,mosh-$(MOSH_VERSION),mosh)
 	$(call DO_PATCH,mosh,mosh,-p0)
 

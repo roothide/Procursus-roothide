@@ -9,7 +9,7 @@ DEBIANUTILS_VERSION := 5.19
 DEB_DEBIANUTILS_V   ?= $(DEBIANUTILS_VERSION)
 
 debianutils-setup: setup
-	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),http://deb.debian.org/debian/pool/main/d/debianutils/debianutils_$(DEBIANUTILS_VERSION).tar.xz)
+	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://snapshot.debian.org/archive/debian/20240609T083025Z/pool/main/d/debianutils/debianutils_$(DEBIANUTILS_VERSION).tar.xz)
 	$(call EXTRACT_TAR,debianutils_$(DEBIANUTILS_VERSION).tar.xz,debianutils-$(DEBIANUTILS_VERSION),debianutils)
 	sed -i 's|/etc/shells|$(MEMO_PREFIX)/etc/shells|g' $(BUILD_WORK)/debianutils/add-shell
 	sed -i 's|/etc/shells|$(MEMO_PREFIX)/etc/shells|g' $(BUILD_WORK)/debianutils/remove-shell
