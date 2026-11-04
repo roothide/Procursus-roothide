@@ -235,8 +235,8 @@ CONFIG_HEXEDIT=y
 # CONFIG_I2CSET is not set
 # CONFIG_INOTIFYD is not set
 # CONFIG_INSMOD is not set
-CONFIG_IONICE=y
-CONFIG_IORENICE=y
+# CONFIG_IONICE is not set
+# CONFIG_IORENICE is not set
 # CONFIG_LOGIN is not set
 # CONFIG_LOSETUP is not set
 # CONFIG_LSATTR is not set

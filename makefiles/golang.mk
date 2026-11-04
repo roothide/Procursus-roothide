@@ -39,7 +39,7 @@ golang: golang-setup
 		CC="clang" \
 		CC_FOR_TARGET="cc" \
 		CXX_FOR_TARGET="c++" \
-		CGO_CFLAGS="-Os" \
+		CGO_CFLAGS="-Os -Wno-error=gnu-folding-constant" \
 		CGO_CXXFLAGS="-Os" \
 		CGO_FFLAGS="-Os" \
 		CGO_LDFLAGS="-Os -L$(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib" \

@@ -16,6 +16,7 @@ cctools-setup: setup
 	$(call EXTRACT_TAR,cctools-$(CCTOOLS_COMMIT).tar.gz,cctools-$(CCTOOLS_COMMIT),cctools)
 	mkdir -p $(BUILD_WORK)/cctools/subprojects
 	$(call EXTRACT_TAR,ld64-$(LD64_COMMIT).tar.gz,ld64-$(LD64_COMMIT),cctools/subprojects/ld64)
+	$(call DO_PATCH,cctools,cctools,-p1)
 	mkdir -p $(BUILD_WORK)/cctools/build
 	echo -e "[host_machine]\n \
 	system = 'darwin'\n \
@@ -44,6 +45,8 @@ else
 cctools: cctools-setup llvm uuid tapi xar
 	cd $(BUILD_WORK)/cctools/build && LIBRARY_PATH="$(TARGET_SYSROOT)/usr/lib:$(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib" meson setup \
 		--cross-file cross.txt \
+		-Dprefer_static=true $(if ,# procursus' meson(0.64.0) workaround) \
+		-Dcmake_prefix_path="$(BUILD_STAGE)/llvm$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)" \
 		-Dld64:supported-archs="x86_64,x86_64h,i386,armv4t,armv5,armv6,armv7,armv7f,armv7k,armv7s,armv6m,armv7m,armv7em,armv8,arm64,arm64e,arm64v8,arm64_32,riscv" \
 		..
 	cd $(BUILD_WORK)/cctools/build; \

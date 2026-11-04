@@ -15,7 +15,6 @@ toybox-setup: setup
 	$(call EXTRACT_TAR,toybox-$(TOYBOX_VERSION).tar.gz,toybox-$(TOYBOX_VERSION),toybox)
 	sed -i s/utmp.h/utmpx.h/g $(BUILD_WORK)/toybox/toys/pending/last.c
 	sed -i 's|struct utmp|struct utmpx|g' $(BUILD_WORK)/toybox/toys/pending/last.c
-	sed -i 's|syscall(__NR_|syscall(|g' $(BUILD_WORK)/toybox/toys/other/ionice.c
 	sed -i 's|UT_LINESIZE|_UTX_LINESIZE|g' $(BUILD_WORK)/toybox/toys/pending/last.c
 	sed -i '1 i\#define LOGIN_NAME_MAX 256' $(BUILD_WORK)/toybox/toys/pending/{user,group}add.c
 	sed -i -e 's/-Wl,--gc-sections//g' -e 's/-Wl,--as-needed//g' $(BUILD_WORK)/toybox/configure

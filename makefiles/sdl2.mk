@@ -23,6 +23,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	sed -i -e 's/have_metal=no/have_metal=yes/' -e '/\ CheckMETAL/a CheckHIDAPI' \
 		-e '/framework,UIKit/a EXTRA_LDFLAGS="\$$EXTRA_LDFLAGS -Wl,-framework,IOKit -Wl,-framework,CoreHaptics"' $(BUILD_WORK)/sdl2/configure
 	sed -i 's/#elif __MACOSX__/#elif __APPLE__/' $(BUILD_WORK)/sdl2/src/hidapi/SDL_hidapi.c
+	sed -i 's/ -Werror=declaration-after-statement//g' $(BUILD_WORK)/sdl2/configure
 endif
 
 ifneq ($(wildcard $(BUILD_WORK)/sdl2/.build_complete),)

@@ -1,0 +1,31 @@
+--- a/meson.build
++++ b/meson.build
+@@ -25,9 +25,11 @@
+ subdir('EXTERNAL_HEADERS')
+ 
+ llvm_dep = dependency('llvm', modules : ['lto'])
++llvm_headers = declare_dependency(include_directories : include_directories(
++  llvm_dep.get_variable(cmake : 'LLVM_INCLUDE_DIRS', configtool : 'includedir').split(';')))
+ blocks_dep = dependency('blocks')
+ 
+-deps = [blocks_dep, llvm_dep.partial_dependency(includes : true, compile_args : true)]
++deps = [blocks_dep, llvm_headers]
+ 
+ libstuff_cflags = []
+ if cc.has_header('corecrypto/ccdigest.h')
+--- a/subprojects/ld64/meson.build
++++ b/subprojects/ld64/meson.build
+@@ -26,10 +26,12 @@
+   command : [find_program('src/custom/create_header.sh'), '@INPUT@', '@OUTPUT@', 'compile_stubs'])
+ 
+ llvm = dependency('llvm', modules : ['lto'])
++llvm_headers = declare_dependency(include_directories : include_directories(
++  llvm.get_variable(cmake : 'LLVM_INCLUDE_DIRS', configtool : 'includedir').split(';')))
+ blocks = dependency('blocks')
+ 
+ libs = ['-lxar', '-ltapi']
+-deps = [llvm.partial_dependency(includes : true, compile_args : true), blocks]
++deps = [llvm_headers, blocks]
+ 
+ if host_machine.system() != 'darwin'
+   openssl = dependency('openssl')

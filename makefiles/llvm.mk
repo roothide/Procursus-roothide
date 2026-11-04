@@ -15,6 +15,14 @@ SWIFT_SYNTAX_VERSION := 509.0.2
 DEB_SWIFT_V          ?= $(SWIFT_VERSION)~$(SWIFT_SUFFIX)
 DEB_LLVM_V           ?= $(LLVM_VERSION)~$(DEB_SWIFT_V)-1
 
+# Installed static libraries must not contain bitcode from a newer host LLVM.
+llvm: private CFLAGS := $(filter-out -flto -flto=%,$(CFLAGS))
+llvm: private CXXFLAGS := $(filter-out -flto -flto=%,$(CXXFLAGS))
+llvm: private OPTIMIZATION_FLAGS := $(filter-out -flto -flto=%,$(OPTIMIZATION_FLAGS))
+# Prefer the SDK's libc++ over the runtime also built in LLVM's library directory.
+llvm: private LDFLAGS := $(filter-out -flto -flto=%,$(LDFLAGS)) -L$(TARGET_SYSROOT)/usr/lib
+llvm: private DEFAULT_CMAKE_FLAGS := $(filter-out -flto -flto=%,$(DEFAULT_CMAKE_FLAGS))
+
 ifneq (,$(findstring darwin,$(MEMO_TARGET)))
 LLVM_CMAKE_FLAGS :=     -DLLDB_USE_SYSTEM_DEBUGSERVER=ON \
 			-DLLVM_CREATE_XCODE_TOOLCHAIN=OFF
@@ -113,10 +121,10 @@ ifeq ($(wildcard $(BUILD_WORK)/llvm/build/.build_complete),)
 		-DLLVM_ENABLE_FFI=ON \
 		-DLLVM_ENABLE_RTTI=ON \
 		-DLLVM_ENABLE_EH=ON \
-		-DCROSS_TOOLCHAIN_FLAGS_NATIVE='-DCMAKE_BUILD_TYPE=Release;-DCMAKE_C_COMPILER=cc;-DCMAKE_CXX_COMPILER=c++;-DCMAKE_OSX_SYSROOT="$(MACOSX_SYSROOT)";-DCMAKE_OSX_ARCHITECTURES="";-DCMAKE_C_FLAGS="$(CFLAGS_FOR_BUILD)";-DCMAKE_CXX_FLAGS="$(CXXFLAGS_FOR_BUILD)";-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS_FOR_BUILD)";-DSWIFT_PATH_TO_SWIFT_SYNTAX_SOURCE="$(BUILD_WORK)/llvm/swift-syntax";-DCMAKE_Swift_COMPILER="$(shell xcrun --find swiftc)";-DSWIFT_BUILD_SWIFT_SYNTAX=TRUE' \
-		-DRUNTIMES_CMAKE_ARGS='-DCMAKE_BUILD_TYPE=$(MEMO_CMAKE_BUILD_TYPE);-DCMAKE_CROSSCOMPILING=true;-DCMAKE_SYSTEM_NAME=Darwin;-DCMAKE_SYSTEM_PROCESSOR=$(shell echo $(GNU_HOST_TRIPLE) | cut -f1 -d-);-DCMAKE_C_FLAGS=$(OPTIMIZATION_FLAGS) $(PLATFORM_VERSION_MIN) -arch $(MEMO_ARCH) -isysroot $(TARGET_SYSROOT) -isystem $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include -isystem $(TARGET_SYSROOT)/usr/include;-DCMAKE_CXX_FLAGS=$(OPTIMIZATION_FLAGS) $(PLATFORM_VERSION_MIN) -arch $(MEMO_ARCH) -isysroot $(TARGET_SYSROOT) -isystem $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include -isystem $(TARGET_SYSROOT)/usr/include;-DCMAKE_FIND_ROOT_PATH="$(BUILD_BASE)";-DPKG_CONFIG_EXECUTABLE="$(BUILD_TOOLS)/cross-pkg-config";-DCMAKE_INSTALL_NAME_TOOL="$(I_N_T)";-DCMAKE_INSTALL_PREFIX="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)";-DCMAKE_INSTALL_NAME_DIR="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib";-DCMAKE_INSTALL_RPATH="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)";-DCMAKE_INSTALL_SYSCONFDIR="$(MEMO_PREFIX)/etc";-DCMAKE_OSX_SYSROOT="../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../../$(TARGET_SYSROOT)";-DCMAKE_OSX_ARCHITECTURES=$(MEMO_ARCH)' \
+		-DCROSS_TOOLCHAIN_FLAGS_NATIVE='-DCMAKE_BUILD_TYPE=Release;-DCMAKE_C_COMPILER=cc;-DCMAKE_CXX_COMPILER=c++;-DCMAKE_OSX_SYSROOT="$(MACOSX_SYSROOT)";-DCMAKE_OSX_ARCHITECTURES="";-DCMAKE_C_FLAGS=$(CFLAGS_FOR_BUILD);-DCMAKE_CXX_FLAGS=$(CXXFLAGS_FOR_BUILD);-DCMAKE_EXE_LINKER_FLAGS=$(LDFLAGS_FOR_BUILD);-DSWIFT_PATH_TO_SWIFT_SYNTAX_SOURCE="$(BUILD_WORK)/llvm/swift-syntax";-DCMAKE_Swift_COMPILER="$(shell xcrun --find swiftc)";-DSWIFT_BUILD_SWIFT_SYNTAX=TRUE' \
+		-DRUNTIMES_CMAKE_ARGS='-DCMAKE_BUILD_TYPE=$(MEMO_CMAKE_BUILD_TYPE);-DCMAKE_CROSSCOMPILING=true;-DCMAKE_SYSTEM_NAME=Darwin;-DCMAKE_SYSTEM_PROCESSOR=$(shell echo $(GNU_HOST_TRIPLE) | cut -f1 -d-);-DCMAKE_C_FLAGS=$(OPTIMIZATION_FLAGS) $(PLATFORM_VERSION_MIN) -arch $(MEMO_ARCH) -isysroot $(TARGET_SYSROOT) -isystem $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include -isystem $(TARGET_SYSROOT)/usr/include;-DCMAKE_CXX_FLAGS=$(OPTIMIZATION_FLAGS) $(PLATFORM_VERSION_MIN) -arch $(MEMO_ARCH) -isysroot $(TARGET_SYSROOT) -isystem $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include -isystem $(TARGET_SYSROOT)/usr/include;-DCMAKE_FIND_ROOT_PATH=$(BUILD_BASE);-DPKG_CONFIG_EXECUTABLE=$(BUILD_TOOLS)/cross-pkg-config;-DCMAKE_INSTALL_NAME_TOOL=$(I_N_T);-DCMAKE_INSTALL_PREFIX=$(MEMO_PREFIX)$(MEMO_SUB_PREFIX);-DCMAKE_INSTALL_NAME_DIR=@rpath;-DCMAKE_INSTALL_RPATH=$(MEMO_PREFIX)$(MEMO_SUB_PREFIX);-DCMAKE_INSTALL_SYSCONFDIR=$(MEMO_PREFIX)/etc;-DCMAKE_OSX_SYSROOT=$(TARGET_SYSROOT);-DCMAKE_OSX_ARCHITECTURES=$(MEMO_ARCH)' \
 		-DCLANG_VERSION=$(LLVM_VERSION) \
-		-DLLVM_ENABLE_LTO=THIN \
+		-DLLVM_ENABLE_LTO=OFF \
 		-DLLVM_BUILD_LLVM_DYLIB=ON \
 		-DLLVM_LINK_LLVM_DYLIB=ON \
 		-DCLANG_LINK_CLANG_DYLIB=ON \
@@ -150,7 +158,7 @@ ifeq ($(wildcard $(BUILD_WORK)/llvm/build/.build_complete),)
 		-DSWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED=ON \
 		-DSWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING=ON \
 		-DSWIFT_INCLUDE_TESTS=OFF \
-		-DSWIFT_TOOLS_ENABLE_LTO=THIN \
+		-DSWIFT_TOOLS_ENABLE_LTO=OFF \
 		-DSWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER=ON \
 		-DSWIFT_NATIVE_SWIFT_TOOLS_PATH="$(BUILD_WORK)/../../native/llvm/bin" \
 		-DSWIFT_NATIVE_CLANG_TOOLS_PATH="$(BUILD_WORK)/../../native/llvm/bin" \
@@ -207,12 +215,8 @@ ifeq ($(wildcard $(BUILD_WORK)/llvm/build-compiler-rt/.build_complete),)
 	# Now we compile compiler-rt.
 	# We do it seperately because CMake will set the correct flags for cross compiling for us,
 	# which we will conflict with.
-	# we need to set the archs for each OS we want the builtins to target because
-	# otherwise it will compile for bogus targets like armv7 tvOS as well as missing
-	# some targets like arm64e ios
-	# In Xcode the watchos debugging tools like asan supports armv7 armv7s arm64_32 arm64 arm64e but
-	# the builtins supports armv7k arm64_32 arm64 arm64e which is very weird but we attempt to follow
-	# regardless
+	# Probe iOS runtime architectures against the SDK's system libraries.
+	# Keep builtin lists explicit for legacy targets that only need compiling.
 	# FIXME: Add visionOS when we update LLVM again (not supported in this version)
 	mkdir -p $(BUILD_WORK)/llvm/build-compiler-rt/memo-include/mach
 	sed -E s/'__IOS_PROHIBITED|__TVOS_PROHIBITED|__WATCHOS_PROHIBITED'//g < $(TARGET_SYSROOT)/usr/include/time.h > $(BUILD_WORK)/llvm/build-compiler-rt/memo-include/time.h
@@ -232,6 +236,7 @@ ifeq ($(wildcard $(BUILD_WORK)/llvm/build-compiler-rt/.build_complete),)
 		-DCMAKE_CXX_COMPILER="c++" \
 		-DCMAKE_C_FLAGS="-isystem $(BUILD_WORK)/llvm/build-compiler-rt/memo-include -Wl,-ld_classic" \
 		-DCMAKE_CXX_FLAGS="-isystem $(BUILD_WORK)/llvm/build-compiler-rt/memo-include -Wl,-ld_classic" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-not_for_dyld_shared_cache" \
 		-DLLVM_ENABLE_PROJECTS="clang;compiler-rt" \
 		-DCMAKE_INSTALL_PREFIX=$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V) \
 		-DCMAKE_INSTALL_NAME_DIR=$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/lib \
@@ -241,7 +246,6 @@ ifeq ($(wildcard $(BUILD_WORK)/llvm/build-compiler-rt/.build_complete),)
 		-DCOMPILER_RT_ENABLE_WATCHOS=ON \
 		-DCOMPILER_RT_ENABLE_MACCATALYST=ON \
 		-DDARWIN_osx_ARCHS="x86_64;x86_64h;arm64;arm64e" \
-		-DDARWIN_ios_ARCHS="armv7;armv7s;arm64;arm64e" \
 		-DDARWIN_iossim_ARCHS="x86_64;arm64" \
 		-DDARWIN_tvos_ARCHS="arm64;arm64e" \
 		-DDARWIN_tvossim_ARCHS="x86_64;arm64" \
@@ -270,7 +274,8 @@ endif
 	# Let's build wrappers now
 	mkdir -p $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/
 	for tool in bbc clang clang++ clang-cpp clang-cl flang-new llc swift swiftc; do \
-		$(CC) $(CFLAGS) $(LDFLAGS) $(BUILD_MISC)/llvm/wrapper.c -o $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/$$tool-$(LLVM_MAJOR_V) \
+		case $$tool in swift|swiftc) tool_version=$(SWIFT_VERSION) ;; *) tool_version=$(LLVM_MAJOR_V) ;; esac; \
+		$(CC) $(CFLAGS) $(LDFLAGS) $(BUILD_MISC)/llvm/wrapper.c -o $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/$$tool-$$tool_version \
 			-DTOOL=\"$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin/$$tool\" -DDEFAULT_SYSROOT=\"$(ON_DEVICE_SDK_PATH)\" \
 			-DEXTRA_CPATH=\"$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include\" -DEXTRA_LIBRARY_PATH=\"$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib\"; \
 	done
@@ -508,10 +513,10 @@ endif
 	cp -a $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/lib/{objects-Release,{libMLIR,libmlir_*}.dylib} $(BUILD_DIST)/libmlir-$(LLVM_MAJOR_V)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/lib
 
 	# llvm.mk Prep mlir-$(LLVM_MAJOR_V)-tools
-	mkdir -p $(BUILD_DIST)/libmlir-$(LLVM_MAJOR_V)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/{bin,lib/llvm-$(LLVM_MAJOR_V)/bin}
-	cp -a $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin/{mlir-*,tblgen-lsp-server} $(BUILD_DIST)/libmlir-$(LLVM_MAJOR_V)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin
-	for file in $(BUILD_DIST)/libmlir-$(LLVM_MAJOR_V)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin/{mlir-*,tblgen-lsp-server}; do \
-		$(LN_S) ../lib/llvm-$(LLVM_MAJOR_V)/bin/$$(basename "$$file") $(BUILD_DIST)/libmlir-$(LLVM_MAJOR_V)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/$$(basename "$$file")-$(LLVM_MAJOR_V); \
+	mkdir -p $(BUILD_DIST)/mlir-$(LLVM_MAJOR_V)-tools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/{bin,lib/llvm-$(LLVM_MAJOR_V)/bin}
+	cp -a $(BUILD_STAGE)/llvm/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin/{mlir-*,tblgen-lsp-server} $(BUILD_DIST)/mlir-$(LLVM_MAJOR_V)-tools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin
+	for file in $(BUILD_DIST)/mlir-$(LLVM_MAJOR_V)-tools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/llvm-$(LLVM_MAJOR_V)/bin/{mlir-*,tblgen-lsp-server}; do \
+		$(LN_S) ../lib/llvm-$(LLVM_MAJOR_V)/bin/$$(basename "$$file") $(BUILD_DIST)/mlir-$(LLVM_MAJOR_V)-tools/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/$$(basename "$$file")-$(LLVM_MAJOR_V); \
 	done
 
 	# llvm.mk Prep clang-tools-$(LLVM_MAJOR_V)
@@ -590,12 +595,15 @@ endif
 ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	$(call SIGN,debugserver-$(LLVM_MAJOR_V),debugserver.xml)
 endif
+	$(call SIGN,libclang-common-$(LLVM_MAJOR_V)-dev,general.xml)
 	$(call SIGN,libclang-cpp$(LLVM_MAJOR_V),general.xml)
+	$(call SIGN,libclang1-$(LLVM_MAJOR_V),general.xml)
 	$(call SIGN,liblldb-$(LLVM_MAJOR_V),general.xml)
 	$(call SIGN,libllvm$(LLVM_MAJOR_V),general.xml)
 	$(call SIGN,lldb-$(LLVM_MAJOR_V),general.xml)
 	$(call SIGN,swift-$(SWIFT_VERSION),general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V),general.xml)
+	$(call SIGN,llvm-$(LLVM_MAJOR_V)-dev,general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V)-runtime,general.xml)
 	$(call SIGN,llvm-$(LLVM_MAJOR_V)-linker-tools,general.xml)
 	$(call SIGN,clang-tools-$(LLVM_MAJOR_V),general.xml)

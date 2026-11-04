@@ -12,6 +12,7 @@ DEB_X265_V     ?= $(X265_VERSION)
 x265-setup: setup
 	$(call GIT_CLONE,https://bitbucket.org/multicoreware/x265_git.git,$(X265_VERSION),x265)
 	sed -i 's/-mcpu=native//g' $(BUILD_WORK)/x265/source/dynamicHDR10/CMakeLists.txt
+	sed -i 's/if(ARM AND CROSS_COMPILE_ARM)/if(ARM AND CROSS_COMPILE_ARM AND NOT ARM64)/; s/elseif(ARM)/elseif(ARM AND NOT ARM64)/' $(BUILD_WORK)/x265/source/dynamicHDR10/CMakeLists.txt
 
 ifneq ($(wildcard $(BUILD_WORK)/x265/.build_complete),)
 x265:

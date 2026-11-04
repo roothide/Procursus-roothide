@@ -630,6 +630,13 @@ LDFLAGS             := $(OPTIMIZATION_FLAGS) -arch $(MEMO_ARCH) -isysroot $(TARG
 PKG_CONFIG_PATH     :=
 ACLOCAL_PATH        := $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/aclocal
 
+# Apple clang's default (gnu17 + __has_c_attribute) makes bundled gnulib pick the C23 [[...]]
+# attribute spellings, which clang rejects in GCC-style positions (e.g. "static [[__maybe_unused__]]").
+# This gnulib knob forces the equivalent __attribute__((...)) spelling; it is an unused macro elsewhere.
+CFLAGS              += -D_GL_BRACKET_BEFORE_ATTRIBUTE=1
+CXXFLAGS            += -D_GL_BRACKET_BEFORE_ATTRIBUTE=1
+CPPFLAGS            += -D_GL_BRACKET_BEFORE_ATTRIBUTE=1
+
 ifeq ($(MEMO_TARGET),bridgeos-arm64)
 CFLAGS              += -Wno-incompatible-sysroot
 CXXFLAGS            += -Wno-incompatible-sysroot
@@ -797,6 +804,7 @@ export BUILD_ROOT BUILD_BASE BUILD_INFO BUILD_WORK BUILD_STAGE BUILD_DIST BUILD_
 export DEB_ARCH DEB_ORIGIN DEB_MAINTAINER
 export CFLAGS CXXFLAGS CPPFLAGS ASFLAGS LDFLAGS ACLOCAL_PATH PKG_CONFIG_PATH
 export DEFAULT_CMAKE_FLAGS DEFAULT_CONFIGURE_FLAGS DEFAULT_PERL_MAKE_FLAGS DEFAULT_PERL_BUILD_FLAGS DEFAULT_GOLANG_FLAGS
+export CONFIG_SITE = $(wildcard $(BUILD_MISC)/config.site $(BUILD_MISC)/config.site.$(MEMO_CFVER))
 
 HAS_COMMAND = $(shell type $(1) >/dev/null 2>&1 && echo 1)
 ifeq ($(NO_PGP),1)
@@ -1262,6 +1270,27 @@ env:
 
 include makefiles/*.mk
 
+# Old bundled libtool checks can force -flat_namespace -undefined suppress.
+# New Apple linkers deprecate these flags on iOS and reject flat namespace for shared-cache-eligible dylibs.
+# some recipes omit LDFLAGS and miss our -not_for_dyld_shared_cache flag.
+# Exporting MACOSX_DEPLOYMENT_TARGET can override CMake's iOS deployment target.
+# Patch the old checks after each project's prerequisites, before its recipe.
+ifneq (,$(findstring roothide,$(MEMO_TARGET)))
+# intcmp and .WAIT both require GNU Make 4.4 or newer.
+ifeq ($(intcmp 1,1),)
+$(error GNU Make 4.4 or newer is required for .WAIT)
+endif
+$(foreach project,$(sort $(SUBPROJECTS)),$(eval $(project): private .EXTRA_PREREQS := .WAIT $(project)-fix-darwin-configure))
+.PHONY: $(addsuffix -fix-darwin-configure,$(sort $(SUBPROJECTS)))
+$(addsuffix -fix-darwin-configure,$(sort $(SUBPROJECTS))):
+	@if [ -d "$(BUILD_WORK)/$(@:-fix-darwin-configure=)" ]; then \
+		find "$(BUILD_WORK)/$(@:-fix-darwin-configure=)" -name .git -prune -o -type f \( -name configure -o -name libtool.m4 -o -name aclocal.m4 -o -name libtool -o -name ltmain.sh \) \
+			-exec grep -Fq 'case $${MACOSX_DEPLOYMENT_TARGET-10.0}' {} \; -exec touch -r {} {}.pmtime \; \
+			-exec sed -i 's/case \$${MACOSX_DEPLOYMENT_TARGET-10\.0}/case $(MACOSX_DEPLOYMENT_TARGET)/g' {} \; \
+			-exec touch -r {}.pmtime {} \; -exec rm -f {}.pmtime \; ; \
+	fi
+endif
+
 RAMDISK_PROJECTS := bash coreutils diskdev-cmds findutils grep gzip ncurses profile.d readline tar openssl libmd openssh
 
 ramdisk:
@@ -1466,6 +1495,26 @@ rebuild-%:
 	rm -rf $(BUILD_STAGE)/$(REPROJ2)
 	+$(MAKE) $(REPROJ)
 
+# Weak-import checks live here. Two entry points:
+#  * X-package: run ONCE after the package's debs are built (moved here from the
+#    AFTER_BUILD macro, which ran it at build time). `rebuild-X-package` is just
+#    `$(MAKE) X-package` (rebuild-% above), so hooking %-package covers both
+#    `make X-package` and `make rebuild-X-package`. The inner $(MAKE), re-entered
+#    with WEAK_IMPORT_CHECK=1, runs the real per-package recipe to build+package,
+#    then we scan the staged tree. GNU make prints a harmless "overriding
+#    commands" warning for the requested goal -- the inner recipe is what runs.
+#  * bootstrap: scan every strap project after the bootstrap build completes
+#    (bootstrap:: is double-colon, so this recipe runs after the build rule above).
+ifndef WEAK_IMPORT_CHECK
+WEAK_IMPORT_GOALS := $(filter-out rebuild-%,$(filter %-package,$(MAKECMDGOALS)))
+ifneq ($(WEAK_IMPORT_GOALS),)
+$(WEAK_IMPORT_GOALS):
+	+@$(MAKE) WEAK_IMPORT_CHECK=1 $@
+	@bash "$(BUILD_TOOLS)/check-weak-imports.sh" "$(BUILD_STAGE)/$(patsubst %-package,%,$@)" || true
+endif
+bootstrap:: ; @bash "$(BUILD_TOOLS)/check-weak-imports.sh" $(addprefix $(BUILD_STAGE)/,$(STRAPPROJECTS)) || true
+endif
+
 %-deps: %
 	@${BUILD_TOOLS}/find_deps.sh $(BUILD_STAGE)/$^
 
@@ -1624,7 +1673,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	@cp -af $(MACOSX_SYSROOT)/usr/include/objc/objc-runtime.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/objc
 	@cp -af $(MACOSX_SYSROOT)/usr/include/libkern/{OSDebug.h,OSKextLib.h,OSReturn.h,OSThermalNotification.h,OSTypes.h,machine} $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/libkern
 	@cp -af $(MACOSX_SYSROOT)/usr/include/kern $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include
-	@cp -af $(MACOSX_SYSROOT)/usr/include/sys/{tty*,ptrace,sys_domain,kern*,random,reboot,user,vnode,disk,vmmeter,conf}.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/sys
+	@cp -af $(MACOSX_SYSROOT)/usr/include/sys/{tty*,ptrace,protosw,sys_domain,kern*,random,reboot,user,vnode,disk,vmmeter,conf}.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/sys
 	@cp -af  $(MACOSX_SYSROOT)/System/Library/Frameworks/Kernel.framework/Versions/Current/Headers/sys/disklabel.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/sys
 	@cp -af $(MACOSX_SYSROOT)/System/Library/Frameworks/IOKit.framework/Headers/* $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/IOKit
 	@cp -af $(MACOSX_SYSROOT)/System/Library/Frameworks/Security.framework/Headers/{mds_schema,oidsalg,SecKeychainSearch,certextensions,Authorization,eisl,SecDigestTransform,SecKeychainItem,oidscrl,cssmcspi,CSCommon,cssmaci,SecCode,CMSDecoder,oidscert,SecRequirement,AuthSession,SecReadTransform,oids,cssmconfig,cssmkrapi,SecPolicySearch,SecAccess,cssmtpi,SecACL,SecEncryptTransform,cssmapi,cssmcli,mds,x509defs,oidsbase,SecSignVerifyTransform,cssmspi,cssmkrspi,SecTask,cssmdli,SecAsn1Coder,cssm,SecTrustedApplication,SecCodeHost,SecCustomTransform,oidsattr,SecIdentitySearch,cssmtype,SecAsn1Types,emmtype,SecTransform,SecTrustSettings,SecStaticCode,emmspi,SecTransformReadTransform,SecKeychain,SecDecodeTransform,CodeSigning,AuthorizationPlugin,cssmerr,AuthorizationTags,CMSEncoder,SecEncodeTransform,SecureDownload,SecAsn1Templates,AuthorizationDB,SecCertificateOIDs,cssmapple}.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/Security
@@ -1633,7 +1682,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 	@cp -af $(MACOSX_SYSROOT)/usr/include/mach/machine/*.defs $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/mach/machine
 	@cp -af $(MACOSX_SYSROOT)/usr/include/rpc/pmap_clnt.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/rpc
 	@cp -af $(MACOSX_SYSROOT)/usr/include/rpcsvc/yp{_prot,clnt}.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/rpcsvc
-	@cp -af $(MACOSX_SYSROOT)/usr/include/mach-o/{i386,x86_64,arm} $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/mach-o
+	@cp -af $(MACOSX_SYSROOT)/usr/include/mach-o/{x86_64,arm} $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/mach-o
 	@cp -af $(TARGET_SYSROOT)/usr/include/mach/machine/thread_state.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/mach/machine
 	@cp -af $(TARGET_SYSROOT)/usr/include/mach/arm $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/mach
 	@cp -af $(BUILD_INFO)/availability.h $(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/os

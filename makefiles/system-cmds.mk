@@ -40,6 +40,7 @@ endif
 	$(call DOWNLOAD_FILES,$(BUILD_WORK)/system-cmds/include, \
 		https://github.com/apple-oss-distributions/launchd/raw/launchd-328/launchd/src/reboot2.h)
 	sed -i 's|#include <mach/i386/vm_param.h>|#include <mach/vm_param.h>|' $(BUILD_WORK)/system-cmds/memory_pressure/memory_pressure.c
+	sed -i 's|ATTRIBUTE_NORETURN \[\[noreturn\]\]|ATTRIBUTE_NORETURN _Noreturn|' $(BUILD_WORK)/system-cmds/zic/private.h
 	# Allow placing kernels from [redacted] sources on rootless
 	sed -i 's|/System/Library/Kernels/kernel.development|$(MEMO_PREFIX)/Library/Kernels/kernel.development|' $(BUILD_WORK)/system-cmds/latency/latency.{1,c}
 	mkdir -p $(BUILD_WORK)/system-cmds/bin

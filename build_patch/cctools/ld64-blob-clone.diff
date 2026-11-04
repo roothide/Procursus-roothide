@@ -1,0 +1,28 @@
+--- a/subprojects/ld64/src/ld/code-sign-blobs/blob.h
++++ b/subprojects/ld64/src/ld/code-sign-blobs/blob.h
+@@ -86,6 +86,7 @@
+ 	{ mMagic = mag; mLength = len; }
+ 	
+ 	bool validateBlob(Magic magic, size_t minSize = 0, size_t maxSize = 0) const;
++	BlobCore *clone() const;
+ 
+ 	template <class T, class Offset>
+ 	T *at(Offset offset)
+--- a/subprojects/ld64/src/ld/code-sign-blobs/blob.cpp
++++ b/subprojects/ld64/src/ld/code-sign-blobs/blob.cpp
+@@ -54,6 +54,15 @@
+ }
+ 
+ 
++BlobCore *BlobCore::clone() const
++{
++	BlobCore *blob = static_cast<BlobCore *>(malloc(length()));
++	if (blob)
++		memcpy(blob, this, length());
++	return blob;
++}
++
++
+ //
+ // Read a blob from a standard file stream.
+ // Reads in one pass, so it's suitable for transmission over pipes and networks.

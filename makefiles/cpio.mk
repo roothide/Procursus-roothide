@@ -11,6 +11,7 @@ cpio-setup: setup
 	$(call PGP_VERIFY,cpio-$(CPIO_VERSION).tar.gz)
 	$(call EXTRACT_TAR,cpio-$(CPIO_VERSION).tar.gz,cpio-$(CPIO_VERSION),cpio)
 	$(call DO_PATCH,cpio,cpio,-p1)
+	sed -i 's|^static _Noreturn void|static __attribute_noreturn__ void|' $(BUILD_WORK)/cpio/gnu/obstack.c
 
 ifneq ($(wildcard $(BUILD_WORK)/cpio/.build_complete),)
 cpio:

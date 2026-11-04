@@ -12,6 +12,7 @@ screen-setup: setup
 	$(call EXTRACT_TAR,screen-$(SCREEN_VERSION).tar.gz,screen-$(SCREEN_VERSION),screen)
 	$(call DO_PATCH,screen,screen,-p1)
 	sed -i '/getpw/d' $(BUILD_WORK)/screen/osdef.h.in
+	sed -i 's/#include <stdarg.h>/#include <stdarg.h>\n#include <stdio.h>/' $(BUILD_WORK)/screen/configure.ac
 
 ifneq ($(wildcard $(BUILD_WORK)/screen/.build_complete),)
 screen:

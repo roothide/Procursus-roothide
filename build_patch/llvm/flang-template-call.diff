@@ -1,0 +1,55 @@
+--- a/flang/include/flang/Evaluate/integer.h
++++ b/flang/include/flang/Evaluate/integer.h
+@@ -307,7 +307,7 @@
+       }
+       result.overflow = false;
+     } else if constexpr (bits < FROM::bits) {
+-      auto back{FROM::template ConvertSigned(result.value)};
++      auto back{FROM::template ConvertSigned<Integer>(result.value)};
+       result.overflow = back.value.CompareUnsigned(that) != Ordering::Equal;
+     }
+     return result;
+--- a/flang/lib/Evaluate/fold-real.cpp
++++ b/flang/lib/Evaluate/fold-real.cpp
+@@ -240,13 +240,7 @@
+                 std::move(funcRef),
+                 ScalarFunc<T, T, TBY>(
+                     [&](const Scalar<T> &x, const Scalar<TBY> &y) -> Scalar<T> {
+-                      ValueWithRealFlags<Scalar<T>> result{x.
+-// MSVC chokes on the keyword "template" here in a call to a
+-// member function template.
+-#ifndef _MSC_VER
+-                                                           template
+-#endif
+-                                                           SCALE(y)};
++                      ValueWithRealFlags<Scalar<T>> result{x.SCALE(y)};
+                       if (result.flags.test(RealFlag::Overflow)) {
+                         context.messages().Say(
+                             "SCALE intrinsic folding overflow"_warn_en_US);
+--- a/flang/runtime/reduction-templates.h
++++ b/flang/runtime/reduction-templates.h
+@@ -86,7 +86,7 @@
+ #ifdef _MSC_VER // work around MSVC spurious error
+   accumulator.GetResult(&result);
+ #else
+-  accumulator.template GetResult(&result);
++  accumulator.template GetResult<CppType>(&result);
+ #endif
+   return result;
+ }
+@@ -127,6 +127,6 @@
+ #ifdef _MSC_VER // work around MSVC spurious error
+   accumulator.GetResult(result, zeroBasedDim);
+ #else
+-  accumulator.template GetResult(result, zeroBasedDim);
++  accumulator.template GetResult<TYPE>(result, zeroBasedDim);
+ #endif
+ }
+@@ -155,6 +155,6 @@
+ #ifdef _MSC_VER // work around MSVC spurious error
+   accumulator.GetResult(result, zeroBasedDim);
+ #else
+-  accumulator.template GetResult(result, zeroBasedDim);
++  accumulator.template GetResult<TYPE>(result, zeroBasedDim);
+ #endif
+ }

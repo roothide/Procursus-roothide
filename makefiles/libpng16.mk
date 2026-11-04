@@ -17,6 +17,8 @@ ifneq ($(wildcard $(BUILD_WORK)/libpng16/.build_complete),)
 libpng16:
 	@echo "Using previously built libpng16."
 else
+libpng16: private CFLAGS += -fno-define-target-os-macros
+libpng16: private CPPFLAGS += -fno-define-target-os-macros
 libpng16: libpng16-setup
 	cd $(BUILD_WORK)/libpng16 && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS)

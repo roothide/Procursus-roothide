@@ -17,6 +17,7 @@ rsync:
 	@echo "Using previously built rsync."
 else
 rsync: rsync-setup openssl lz4 zstd xxhash popt
+	export CFLAGS="$(CFLAGS) -Wno-strict-prototypes" && \
 	cd $(BUILD_WORK)/rsync && ./configure \
 		$(DEFAULT_CONFIGURE_FLAGS) \
 		--with-included-zlib=no \

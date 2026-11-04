@@ -49,6 +49,7 @@ network-cmds-setup: setup
 	sed -i '1s|^|#include <TargetConditionals.h>\n|' $(BUILD_WORK)/network-cmds/{dnctl,frame_delay,ecnprobe,pktapctl,pktmnglr,mptcp_client}/*.c
 	sed -i '/__CCT_DECLARE_CONSTRAINED_PTR_TYPES/d' $(BUILD_WORK)/network-cmds/include/sys/socket.h
 	sed -i 's/	IF_NETEM_MODEL_NLC = 1/	IF_NETEM_MODEL_IOD = 2,IF_NETEM_MODEL_FPD = 3,IF_NETEM_MODEL_NLC = 1/g' $(BUILD_WORK)/network-cmds/include/net/if_var_private.h
+	sed -i 's/NULL, NULL);/NULL, 0);/' $(BUILD_WORK)/network-cmds/ndp.tproj/ndp.c
 
 ifneq ($(wildcard $(BUILD_WORK)/network-cmds/.build_complete),)
 network-cmds:
