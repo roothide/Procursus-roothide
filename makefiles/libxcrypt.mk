@@ -23,6 +23,7 @@ else
 libxcrypt: libxcrypt-setup
 	cd $(BUILD_WORK)/libxcrypt && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
+		ax_cv_check_cflags___fno_plt=no \
 		CFLAGS="$(patsubst -flto=thin,,$(CFLAGS))" \
 		LDFLAGS="$(patsubst -flto=thin,,$(LDFLAGS))"
 	# LTO is disabled here because it will build but not work if compiled with LTO.

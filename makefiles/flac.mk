@@ -26,7 +26,7 @@ flac: flac-setup libogg
 		--disable-rpath \
 		--with-ogg \
 		--with-ogg-includes=$(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include \
-		LDFLAGS="$(shell echo '$(LDFLAGS)' | sed 's/-Wl,-not_for_dyld_shared_cache//g')"
+		LDFLAGS="$(LDFLAGS)"
 	+$(MAKE) -C $(BUILD_WORK)/flac
 	+$(MAKE) -C $(BUILD_WORK)/flac install \
 		DESTDIR=$(BUILD_STAGE)/flac

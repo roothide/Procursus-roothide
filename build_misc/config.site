@@ -1,0 +1,14 @@
+# Shared config.site FALLBACK (CFVER-independent).
+#
+# Sourced via CONFIG_SITE (wired in the top-level Makefile) only for CFVERs that
+# do NOT have their own build_misc/config.site.$(MEMO_CFVER). CONFIG_SITE can
+# name just ONE file (autoconf 2.69 treats a space-separated list as a single,
+# nonexistent path and silently skips it), so a CFVER-specific config.site.<CFVER>
+# must be SELF-CONTAINED and duplicate the toolchain pins below -- it is used
+# INSTEAD of this file, not alongside it.
+#
+# Put toolchain-related pins here (independent of the iOS deployment target);
+# keep iOS-version-specific symbol pins in config.site.<CFVER>.
+
+# apple has deemed -single_module obsolete starting with xcode16
+lt_cv_apple_cc_single_mod=yes

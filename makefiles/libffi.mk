@@ -9,6 +9,7 @@ DEB_LIBFFI_V   ?= $(LIBFFI_VERSION)
 libffi-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://github.com/libffi/libffi/releases/download/v$(LIBFFI_VERSION)/libffi-$(LIBFFI_VERSION).tar.gz)
 	$(call EXTRACT_TAR,libffi-$(LIBFFI_VERSION).tar.gz,libffi-$(LIBFFI_VERSION),libffi)
+	$(call DO_PATCH,libffi,libffi,-p1)
 
 ifneq ($(wildcard $(BUILD_WORK)/libffi/.build_complete),)
 libffi:

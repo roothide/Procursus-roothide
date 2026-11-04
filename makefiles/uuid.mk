@@ -19,7 +19,7 @@ else
 uuid: uuid-setup
 	cd $(BUILD_WORK)/uuid && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
-		ac_cv_va_copy=yes \
+		ac_cv_va_copy=C99 \
 		CC="$(CC) $(CFLAGS)" \
 		CXX="$(CXX) $(CXXFLAGS)"
 	+$(MAKE) -C $(BUILD_WORK)/uuid

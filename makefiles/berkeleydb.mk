@@ -11,6 +11,7 @@ berkeleydb-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://fossies.org/linux/misc/db-$(BDB_VERSION).tar.gz)
 	$(call EXTRACT_TAR,db-$(BDB_VERSION).tar.gz,db-$(BDB_VERSION),berkeleydb)
 	$(call DO_PATCH,berkeleydb,berkeleydb,-p1)
+	sed -i -e 's|pthread_getspecific(&key)|pthread_getspecific(key)|g' -e 's|pthread_setspecific(&key, p)|pthread_setspecific(key, p)|g' $(BUILD_WORK)/berkeleydb/dist/aclocal/tls.m4
 	sed -i 's/-keep_private_externs -nostdlib/-keep_private_externs $(PLATFORM_VERSION_MIN) -arch $(MEMO_ARCH) -nostdlib/g' $(BUILD_WORK)/berkeleydb/dist/aclocal/libtool.m4
 
 ifneq ($(wildcard $(BUILD_WORK)/berkeleydb/.build_complete),)

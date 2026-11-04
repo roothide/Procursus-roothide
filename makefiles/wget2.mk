@@ -10,6 +10,9 @@ wget2-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://ftpmirror.gnu.org/wget/wget2-$(WGET2_VERSION).tar.gz{$(comma).sig})
 	$(call PGP_VERIFY,wget2-$(WGET2_VERSION).tar.gz)
 	$(call EXTRACT_TAR,wget2-$(WGET2_VERSION).tar.gz,wget2-$(WGET2_VERSION),wget2)
+	# Honor the shared gnulib attribute compatibility switch in this older snapshot.
+	sed -i 's/^#if _GL_HAS_C_ATTRIBUTE (maybe_unused)$$/#if _GL_HAS_C_ATTRIBUTE (maybe_unused) \&\& (!defined _GL_BRACKET_BEFORE_ATTRIBUTE || !_GL_BRACKET_BEFORE_ATTRIBUTE)/' $(BUILD_WORK)/wget2/config.h.in
+	sed -i 's/return gl_thread_self();/return (wget_thread_id) gl_thread_self();/' $(BUILD_WORK)/wget2/libwget/thread.c
 
 ifneq ($(wildcard $(BUILD_WORK)/wget2/.build_complete),)
 wget2:

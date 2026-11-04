@@ -9,6 +9,7 @@ DEB_LIBPIXMAN_V   ?= $(LIBPIXMAN_VERSION)
 libpixman-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://cairographics.org/releases/pixman-$(LIBPIXMAN_VERSION).tar.gz)
 	$(call EXTRACT_TAR,pixman-$(LIBPIXMAN_VERSION).tar.gz,pixman-$(LIBPIXMAN_VERSION),libpixman)
+	sed -i 's/^static const float$$/static float/' $(BUILD_WORK)/libpixman/pixman/pixman-bits-image.c
 
 ifneq ($(wildcard $(BUILD_WORK)/libpixman/.build_complete),)
 libpixman:

@@ -10,6 +10,7 @@ harfbuzz-setup: setup
 	$(call GITHUB_ARCHIVE,harfbuzz,harfbuzz,$(HARFBUZZ_VERSION),$(HARFBUZZ_VERSION))
 	$(call EXTRACT_TAR,harfbuzz-$(HARFBUZZ_VERSION).tar.gz,harfbuzz-$(HARFBUZZ_VERSION),harfbuzz)
 	sed -i 's/supp_size;/__unused supp_size;/' $(BUILD_WORK)/harfbuzz/src/hb-subset-cff1.cc
+	sed -i '/^#pragma GCC diagnostic error[[:space:]]*"-Wcast-function-type"/d' $(BUILD_WORK)/harfbuzz/src/hb.hh
 
 ifneq ($(wildcard $(BUILD_WORK)/harfbuzz/.build_complete),)
 harfbuzz:

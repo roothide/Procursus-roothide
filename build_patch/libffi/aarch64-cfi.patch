@@ -1,0 +1,38 @@
+Subject: aarch64: start CFI after function labels
+Upstream: https://github.com/libffi/libffi/commit/8308bed5b2423878aa20d7884a99cf2e30b8daf7
+
+Backport the Darwin arm64 CFI fix to libffi 3.4.6. Newer LLVM assemblers
+reject non-private function labels inside a CFI procedure.
+
+--- a/src/aarch64/sysv.S
++++ b/src/aarch64/sysv.S
+@@ -89,8 +89,8 @@
+    x5 closure
+ */
+ 
++CNAME(ffi_call_SYSV):
+ 	cfi_startproc
+-CNAME(ffi_call_SYSV):
+ 	BTI_C
+ 	/* Sign the lr with x1 since that is where it will be stored */
+ 	SIGN_LR_WITH_REG(x1)
+@@ -347,8 +347,8 @@
+ #endif
+ 
+ 	.align	4
++CNAME(ffi_closure_SYSV):
+ 	cfi_startproc
+-CNAME(ffi_closure_SYSV):
+ 	BTI_C
+ 	SIGN_LR
+ 	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
+@@ -643,8 +643,8 @@
+ #endif
+ 
+ 	.align	4
++CNAME(ffi_go_closure_SYSV):
+ 	cfi_startproc
+-CNAME(ffi_go_closure_SYSV):
+ 	BTI_C
+ 	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
+ 	cfi_adjust_cfa_offset (ffi_closure_SYSV_FS)
