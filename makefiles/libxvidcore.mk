@@ -9,6 +9,7 @@ DEB_LIBXVIDCORE_V   ?= $(LIBXVIDCORE_VERSION)
 libxvidcore-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://downloads.xvid.com/downloads/xvidcore-$(LIBXVIDCORE_VERSION).tar.bz2)
 	$(call EXTRACT_TAR,xvidcore-$(LIBXVIDCORE_VERSION).tar.bz2,xvidcore,libxvidcore)
+	sed -i 's/-flat_namespace//g' $(BUILD_WORK)/libxvidcore/build/generic/configure
 
 ifneq ($(wildcard $(BUILD_WORK)/libxvidcore/.build_complete),)
 libxvidcore:
