@@ -39,9 +39,13 @@ vim: vim-setup ncurses gettext libsodium
 		DESTDIR="$(BUILD_STAGE)/vim"
 	rm -f $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/!(vim|vimtutor|xxd)
 	mv $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/vim $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/vim.basic
+	sed -i -e 's|seq="vim |seq="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/vim.basic |' -e 's|VIM=vim$$|VIM="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/vim.basic"|' $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/vimtutor
 	rm -rf $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/man/*{ISO*,UTF*,KOI*}
 	find $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/man -type f ! -name "vim.1" ! -name "vimtutor.1" ! -name "xxd.1" -delete
 	find $(BUILD_STAGE)/vim/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/man -type l -delete
+	grep -rlIF -e '$(shell command -v perl)' -e '$(shell command -v nawk)' "$(BUILD_STAGE)/vim" | xargs -r \
+		sed -i -e 's|$(shell command -v perl)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/perl|g' \
+			-e 's|$(shell command -v nawk)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/awk|g'
 	$(call AFTER_BUILD)
 endif
 vim-package: vim-stage

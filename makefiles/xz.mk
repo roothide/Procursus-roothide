@@ -28,6 +28,7 @@ xz: xz-setup gettext
 		DESTDIR="$(BUILD_STAGE)/xz"
 	cd $(BUILD_WORK)/xz && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
+		--libdir="$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)$(MEMO_ALT_PREFIX)/lib" \
 		--disable-shared \
 		--enable-nls \
 		--disable-encoders \

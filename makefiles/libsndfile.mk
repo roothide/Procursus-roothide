@@ -18,6 +18,7 @@ else
 libsndfile: libsndfile-setup flac libogg libvorbis libopus
 	cd $(BUILD_WORK)/libsndfile && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS)
+	sed -i 's|programs_sndfile_cmp_LDADD =|programs_sndfile_cmp_LDADD = -Wl,-stack_size,0x400000 |g' $(BUILD_WORK)/libsndfile/Makefile
 	+$(MAKE) -C $(BUILD_WORK)/libsndfile
 	+$(MAKE) -C $(BUILD_WORK)/libsndfile install \
 		DESTDIR=$(BUILD_STAGE)/libsndfile

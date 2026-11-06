@@ -4,4 +4,5 @@ Version: @DEB_TAPI_V@
 Architecture: @DEB_ARCH@
 Maintainer: @DEB_MAINTAINER@
 Priority: optional
+Depends: libncursesw6 (>= 6.0), libzstd1
 Description: Text-based Application Programming Interface frontend

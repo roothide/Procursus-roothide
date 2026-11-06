@@ -2,7 +2,7 @@ Package: tigervnc-xorg-extension
 Version: @DEB_TIGERVNC_V@
 Architecture: @DEB_ARCH@
 Maintainer: @DEB_MAINTAINER@
-Depends: xserver-xorg-core
+Depends: xserver-xorg-core, libgeneral0, libgnutls30, libjpeg62-turbo, libpixman-1-0
 Section: X11
 Provides: vnc-server, vnc-xorg-extension
 Description: Virtual network computing X server extension

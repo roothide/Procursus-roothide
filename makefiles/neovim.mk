@@ -27,6 +27,7 @@ neovim: neovim-setup gettext lua-luv libuv1 msgpack libvterm libtermkey unibiliu
 	@echo "Install neovim before building"
 	cd $(BUILD_WORK)/neovim/build && $(MEMO_DEPLOYMENT) cmake . \
 		$(DEFAULT_CMAKE_FLAGS) \
+		-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
 		-DXGETTEXT_PRG="`which xgettext`" \
 		-DLUA_PRG="`which luajit`" \
 		-DGETTEXT_MSGFMT_EXECUTABLE="`which msgfmt`" \

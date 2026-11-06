@@ -1,0 +1,16 @@
+diff --git a/pbcopy/pbcopy.m b/pbcopy/pbcopy.m
+index 4f8779c72..ffbd10628 100644
+--- a/pbcopy/pbcopy.m
++++ b/pbcopy/pbcopy.m
+@@ -31,6 +31,10 @@ int main (int argc, char* argv[]) {
+         NSString *dataString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+         pasteboard.string = dataString;
++
++        //hack: sync the pasteboard
++        pasteboard.string;
++
+         NSLog(@"Data copied to clipboard.");
+     }
+ }
+\ No newline at end of file

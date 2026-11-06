@@ -16,8 +16,10 @@ ifneq ($(wildcard $(BUILD_WORK)/libpcap/.build_complete),)
 libpcap:
 	@echo "Using previously built libpcap."
 else
+# add -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER to resolve build order issue with flex package
 libpcap: libpcap-setup openssl
 	cd $(BUILD_WORK)/libpcap/build && cmake \
+		-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
 		$(DEFAULT_CMAKE_FLAGS) \
 		-DINET6=ON \
 		-DPCAP_TYPE=bpf \

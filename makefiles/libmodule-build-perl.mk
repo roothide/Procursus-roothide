@@ -21,6 +21,8 @@ libmodule-build-perl: libmodule-build-perl-setup perl
 		destdir="$(BUILD_STAGE)/libmodule-build-perl"
 	$(BUILD_WORK)/libmodule-build-perl/Build install
 	rm -rf $(BUILD_STAGE)/libmodule-build-perl/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib
+	grep -rlIF -e '$(shell command -v perl)' "$(BUILD_STAGE)/libmodule-build-perl" | xargs -r \
+		sed -i 's|$(shell command -v perl)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/perl|g'
 	$(call AFTER_BUILD)
 endif
 

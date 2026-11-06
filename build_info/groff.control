@@ -4,6 +4,8 @@ Architecture: @DEB_ARCH@
 Maintainer: @DEB_MAINTAINER@
 Section: Utilities
 Priority: optional
+Depends: perl
+Recommends: libfile-homedir-perl
 Multi-Arch: foreign
 Homepage: https://www.gnu.org/software/groff/
 Description: GNU troff text-formatting system

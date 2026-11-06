@@ -11,6 +11,8 @@ curl-setup: setup
 	$(call PGP_VERIFY,curl-$(CURL_VERSION).tar.xz,asc)
 	$(call EXTRACT_TAR,curl-$(CURL_VERSION).tar.xz,curl-$(CURL_VERSION),curl)
 	sed -i '/CURL_VERIFY_RUNTIMELIBS/d' $(BUILD_WORK)/curl/configure.ac
+	# hg.mozilla.org 302 redirect, kept HTTPS-only via --proto-redir to preserve the script's no-insecure default.
+	sed -i 's|curl -w %{response_code}|curl -L --proto-redir =https -w %{response_code}|' $(BUILD_WORK)/curl/scripts/mk-ca-bundle.pl
 
 ifneq ($(wildcard $(BUILD_WORK)/curl/.build_complete),)
 curl:

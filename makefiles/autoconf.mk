@@ -4,7 +4,7 @@ endif
 
 SUBPROJECTS       += autoconf
 AUTOCONF_VERSION  := 2.71
-DEB_AUTOCONF_V    ?= $(AUTOCONF_VERSION)
+DEB_AUTOCONF_V    ?= $(AUTOCONF_VERSION)-1
 
 autoconf-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://ftpmirror.gnu.org/autoconf/autoconf-$(AUTOCONF_VERSION).tar.gz{$(comma).sig})
@@ -23,6 +23,9 @@ autoconf: autoconf-setup
 	+$(MAKE) -C $(BUILD_WORK)/autoconf
 	+$(MAKE) -C $(BUILD_WORK)/autoconf install \
 		DESTDIR=$(BUILD_STAGE)/autoconf
+	grep -rlIF -e '$(shell command -v perl)' -e '$(shell command -v m4)' "$(BUILD_STAGE)/autoconf" | xargs -r \
+		sed -i -e 's|$(shell command -v perl)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/perl|g' \
+				-e 's|$(shell command -v m4)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/m4|g'
 	$(call AFTER_BUILD,copy)
 endif
 autoconf-package: autoconf-stage

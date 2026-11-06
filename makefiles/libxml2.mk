@@ -17,7 +17,7 @@ ifneq ($(wildcard $(BUILD_WORK)/libxml2/.build_complete),)
 libxml2:
 	@echo "Using previously built libxml2."
 else
-libxml2: libxml2-setup xz ncurses readline
+libxml2: libxml2-setup xz ncurses readline python3
 	cd $(BUILD_WORK)/libxml2 && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
 		--libdir=$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)$(MEMO_ALT_PREFIX)/lib \

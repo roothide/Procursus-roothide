@@ -4,7 +4,7 @@ endif
 
 SUBPROJECTS       += automake
 AUTOMAKE_VERSION  := 1.16.5
-DEB_AUTOMAKE_V    ?= $(AUTOMAKE_VERSION)
+DEB_AUTOMAKE_V    ?= $(AUTOMAKE_VERSION)-1
 
 automake-setup: setup
 	$(call DOWNLOAD_FILES,$(BUILD_SOURCE),https://ftpmirror.gnu.org/automake/automake-$(AUTOMAKE_VERSION).tar.gz{$(comma).sig})
@@ -21,6 +21,8 @@ automake: automake-setup
 	+$(MAKE) -C $(BUILD_WORK)/automake
 	+$(MAKE) -C $(BUILD_WORK)/automake install \
 		DESTDIR=$(BUILD_STAGE)/automake
+	grep -rlIF -e '$(shell command -v perl)' "$(BUILD_STAGE)/automake" | xargs -r \
+		sed -i 's|$(shell command -v perl)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/perl|g'
 	$(call AFTER_BUILD,copy)
 endif
 automake-package: automake-stage
