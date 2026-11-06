@@ -2,7 +2,7 @@ ifneq ($(PROCURSUS),1)
 $(error Use the main Makefile)
 endif
 
-SUBPROJECTS   += libxo
+STRAPPROJECTS   += libxo
 LIBXO_VERSION := 1.4.0
 DEB_LIBXO_V   ?= $(LIBXO_VERSION)
 
@@ -31,8 +31,10 @@ libxo: libxo-setup
 		ac_cv_func_malloc_0_nonnull=yes \
 		ac_cv_func_realloc_0_nonnull=yes
 	+$(MAKE) -C $(BUILD_WORK)/libxo \
+		libxo_la_LIBADD=-lutil \
 		LIBTOOL='$(BUILD_WORK)/libxo/libtool'
 	+$(MAKE) -C $(BUILD_WORK)/libxo install \
+		libxo_la_LIBADD=-lutil \
 		LIBTOOL='$(BUILD_WORK)/libxo/libtool' \
 		DESTDIR=$(BUILD_STAGE)/libxo
 ifeq ($(shell [ "$(CFVER_WHOLE)" -ge 2000 ] && echo 1),1)

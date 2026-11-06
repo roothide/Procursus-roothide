@@ -13,8 +13,8 @@ X264_CONFIGURE_ARGS += --extra-asflags='$(CFLAGS)'
 endif
 
 x264-setup: setup
-#	Clones latest from the stable branch. Update version/commit on compile.
-	$(call GIT_CLONE,https://code.videolan.org/videolan/x264.git,stable,x264)
+	$(call GITHUB_ARCHIVE,mirror,x264,$(X264_COMMIT),$(X264_COMMIT))
+	$(call EXTRACT_TAR,x264-$(X264_COMMIT).tar.gz,x264-$(X264_COMMIT),x264)
 
 ifneq ($(wildcard $(BUILD_WORK)/x264/.build_complete),)
 x264:

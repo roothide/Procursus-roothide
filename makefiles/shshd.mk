@@ -27,7 +27,7 @@ shshd-setup: setup
 	mkdir -p $(BUILD_WORK)/shshd/include
 	$(LN_S) $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/IOKit $(BUILD_WORK)/shshd/include/IOKit
 	sed -i 's|kIOMainPortDefault|gang_kIOMasterPortDefault|' $(BUILD_WORK)/shshd/main.swift
-	if ! [ grep -q "gang_kIOMasterPortDefault" $(BUILD_WORK)/shshd/Bridge.h ]; then printf 'const mach_port_t gang_kIOMasterPortDefault asm ("_kIOMasterPortDefault");\n' >> $(BUILD_WORK)/shshd/Bridge.h; fi
+	if ! grep -q "gang_kIOMasterPortDefault" $(BUILD_WORK)/shshd/Bridge.h; then printf 'const mach_port_t gang_kIOMasterPortDefault asm ("_kIOMasterPortDefault");\n' >> $(BUILD_WORK)/shshd/Bridge.h; fi
 
 ifneq ($(wildcard $(BUILD_WORK)/shshd/.build_complete),)
 shshd:

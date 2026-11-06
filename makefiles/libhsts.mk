@@ -40,6 +40,7 @@ libhsts-package: libhsts-stage
 
 	# libhsts.mk Sign
 	$(call SIGN,libhsts0,general.xml)
+	$(call SIGN,libhsts-dev,general.xml)
 
 	# libhsts.mk Make .debs
 	$(call PACK,libhsts0,DEB_LIBHSTS_V)

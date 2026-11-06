@@ -1,0 +1,777 @@
+Native arm64e data authentication for Swift 5.9.2 (system Swift runtime).
+
+Backport/adapted sources:
+  b22057e63737162fe29ccc262c5f60dc0089f7c6 (VWT, merged PR #74625)
+  2359f281d244de1d8830b2a473937b9f2af7e1bd (coroutine prototypes, open PR #30413)
+  68fbc7debc00ca5cb065e65f0aab8c49235ff122 (yield-type discriminator cache)
+  swiftlang/swift PR #93528 at 3ace1f8c94e27945dae239ab646125dd39dba029
+    (unmerged proposal; applicable 5.9.2 IRGen paths validated separately).
+
+Uses a private schema helper instead of introducing new switches/options.
+Class-ro signing is deliberately excluded. Newer Twc/global-block emission
+paths absent in Swift 5.9.2 and its disabled read-only static-object path are
+not backported. Requires the paired LLVM 16 retcon coroutine patch.
+See the recorded commit audit for per-commit scope.
+
+--- a/lib/IRGen/GenPointerAuth.h
++++ b/lib/IRGen/GenPointerAuth.h
+@@ -40,6 +40,14 @@
+ class IRGenFunction;
+ class IRGenModule;
+ class PointerAuthInfo;
++class ConstantAggregateBuilderBase;
++
++/// Native Darwin arm64e data pointers, using the existing ptrauth mode.
++clang::PointerAuthSchema getArm64eDataPointerAuthSchema(IRGenModule &IGM,
++                                                      uint16_t discriminator);
++void addArm64eDataPointer(IRGenModule &IGM,
++                          ConstantAggregateBuilderBase &builder,
++                          llvm::Constant *pointer, uint16_t discriminator);
+ 
+ /// Additional information about the source of a function pointer.
+ class PointerAuthEntity {
+--- a/lib/IRGen/GenPointerAuth.cpp
++++ b/lib/IRGen/GenPointerAuth.cpp
+@@ -29,6 +29,30 @@
+ 
+ using namespace swift;
+ using namespace irgen;
++
++clang::PointerAuthSchema
++irgen::getArm64eDataPointerAuthSchema(IRGenModule &IGM,
++                                     uint16_t discriminator) {
++  const auto &functions = IGM.getOptions().PointerAuth.FunctionPointers;
++  if (IGM.Triple.getArchName() != "arm64e" || !IGM.Triple.isOSBinFormatMachO() ||
++      !functions || functions.getKind() != PointerAuthSchema::Kind::ARM8_3)
++    return {};
++  return PointerAuthSchema(PointerAuthSchema::ARM8_3Key::ASDA,
++                           /*address*/ true,
++                           PointerAuthSchema::Discrimination::Constant,
++                           discriminator);
++}
++
++void irgen::addArm64eDataPointer(IRGenModule &IGM,
++                                ConstantAggregateBuilderBase &builder,
++                                llvm::Constant *pointer,
++                                uint16_t discriminator) {
++  if (pointer->isNullValue())
++    return builder.add(pointer);
++  builder.addSignedPointer(pointer,
++                           getArm64eDataPointerAuthSchema(IGM, discriminator),
++                           PointerAuthEntity());
++}
+ 
+ /**************************** INTRINSIC OPERATIONS ****************************/
+ 
+@@ -649,7 +673,7 @@
+   };
+ 
+   auto getCoroutineYieldTypesDiscriminator = [&](CanSILFunctionType fnType) {
+-    llvm::ConstantInt *&cache = IGM.getPointerAuthCaches().Types[fnType];
++    llvm::ConstantInt *&cache = IGM.getPointerAuthCaches().YieldTypes[fnType];
+     if (cache) return cache;
+ 
+     auto hash = getYieldTypesHash(IGM, fnType);
+--- a/lib/IRGen/GenMeta.cpp
++++ b/lib/IRGen/GenMeta.cpp
+@@ -3408,6 +3408,12 @@
+                                               llvm::Constant *cacheVariable) {
+     llvm::Value *descriptor =
+       IGF.IGM.getAddrOfTypeContextDescriptor(typeDecl, RequireMetadata);
++    if (auto schema = IGF.IGM.getOptions().PointerAuth.TypeDescriptorsAsArguments)
++      descriptor = emitPointerAuthSign(
++          IGF, descriptor,
++          PointerAuthInfo::emit(
++              IGF, schema, nullptr,
++              PointerAuthEntity::Special::TypeDescriptorAsArgument));
+     auto responsePair =
+         IGF.Builder.CreateCall(IGF.IGM.getGetSingletonMetadataFunctionPointer(),
+                                {request.get(IGF), descriptor});
+@@ -3684,7 +3690,9 @@
+       if (asImpl().getFieldLayout().hasObjCImplementation())
+         return;
+ 
+-      B.add(asImpl().getValueWitnessTable(false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            asImpl().getValueWitnessTable(false).getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     llvm::Constant *getAddrOfMetaclassObject(ForDefinition_t forDefinition) {
+@@ -3704,9 +3712,15 @@
+       if (IGM.ObjCInterop) {
+         // Get the metaclass pointer as an intptr_t.
+         auto metaclass = asImpl().getAddrOfMetaclassObject(NotForDefinition);
+-        auto flags =
+-          llvm::ConstantExpr::getPtrToInt(metaclass, IGM.MetadataKindTy);
+-        B.add(flags);
++        if (getArm64eDataPointerAuthSchema(
++                IGM, SpecialPointerAuthDiscriminators::ObjCISA)) {
++          addArm64eDataPointer(IGM, B, metaclass,
++                              SpecialPointerAuthDiscriminators::ObjCISA);
++        } else {
++          auto flags =
++              llvm::ConstantExpr::getPtrToInt(metaclass, IGM.MetadataKindTy);
++          B.add(flags);
++        }
+       } else {
+         // On non-objc platforms just fill it with a null, there
+         // is no Objective-C metaclass.
+@@ -3760,9 +3774,11 @@
+         // We have to do getAddrOfObjCClass ourselves here because
+         // the ObjC runtime base needs to be ObjC-mangled but isn't
+         // actually imported from a clang module.
+-        B.add(IGM.getAddrOfObjCClass(
+-                               IGM.getObjCRuntimeBaseForSwiftRootClass(Target),
+-                               NotForDefinition));
++        addArm64eDataPointer(
++            IGM, B,
++            IGM.getAddrOfObjCClass(
++                IGM.getObjCRuntimeBaseForSwiftRootClass(Target), NotForDefinition),
++            SpecialPointerAuthDiscriminators::ObjCSuperclass);
+         return;
+       }
+ 
+@@ -3770,7 +3786,8 @@
+       // lead to shouldAddNullSuperclass returning true above.
+       auto metadata = asImpl().getSuperclassMetadata(superclass);
+       assert(metadata);
+-      B.add(metadata);
++      addArm64eDataPointer(IGM, B, metadata,
++                          SpecialPointerAuthDiscriminators::ObjCSuperclass);
+     }
+ 
+     llvm::Constant *emitLayoutString() {
+@@ -4388,7 +4405,8 @@
+       // isa
+       ClassDecl *rootClass = getRootClassForMetaclass(IGM, Target);
+       auto isa = IGM.getAddrOfMetaclassObject(rootClass, NotForDefinition);
+-      B.add(isa);
++      addArm64eDataPointer(IGM, B, isa,
++                          SpecialPointerAuthDiscriminators::ObjCISA);
+       // super, which is dependent if the superclass is generic
+       B.addNullPointer(IGM.ObjCClassPtrTy);
+       // cache
+@@ -4408,15 +4426,6 @@
+                                       llvm::Value *descriptor,
+                                       llvm::Value *arguments,
+                                       llvm::Value *templatePointer) {
+-      // Sign the descriptor.
+-      auto schema = IGF.IGM.getOptions().PointerAuth.TypeDescriptorsAsArguments;
+-      if (schema) {
+-        auto authInfo = PointerAuthInfo::emit(
+-            IGF, schema, nullptr,
+-            PointerAuthEntity::Special::TypeDescriptorAsArgument);
+-        descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
+-      }
+-
+       auto metadata = IGF.Builder.CreateCall(
+           getLayoutString() ?
+             IGM.getAllocateGenericClassMetadataWithLayoutStringFunctionPointer() :
+@@ -4897,9 +4906,16 @@
+ /// Given a type metadata pointer, load its value witness table.
+ llvm::Value *
+ IRGenFunction::emitValueWitnessTableRefForMetadata(llvm::Value *metadata) {
+-  auto witness = emitInvariantLoadFromMetadataAtIndex(*this, metadata, nullptr,
++  llvm::Value *slot = nullptr;
++  auto witness = emitInvariantLoadFromMetadataAtIndex(*this, metadata, &slot,
+                                                       -1, IGM.WitnessTablePtrTy,
+                                                       ".valueWitnesses");
++  if (auto schema = getArm64eDataPointerAuthSchema(
++          IGM, SpecialPointerAuthDiscriminators::ValueWitnessTable)) {
++    return emitPointerAuthAuth(
++        *this, witness,
++        PointerAuthInfo::emit(*this, schema, slot, PointerAuthEntity()));
++  }
+   // A value witness table is dereferenceable to the number of value witness
+   // pointers.
+   
+@@ -5057,7 +5073,9 @@
+     }
+ 
+     void addValueWitnessTable() {
+-      B.add(asImpl().getValueWitnessTable(false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            asImpl().getValueWitnessTable(false).getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     llvm::Constant *emitLayoutString() {
+@@ -5191,15 +5209,6 @@
+       auto extraSize = getExtraDataSize(layout);
+       auto extraSizeV = IGM.getSize(extraSize);
+ 
+-      // Sign the descriptor.
+-      auto schema = IGF.IGM.getOptions().PointerAuth.TypeDescriptorsAsArguments;
+-      if (schema) {
+-        auto authInfo = PointerAuthInfo::emit(
+-            IGF, schema, nullptr,
+-            PointerAuthEntity::Special::TypeDescriptorAsArgument);
+-        descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
+-      }
+-
+       return IGF.Builder.CreateCall(
+           getLayoutString() ?
+           IGM.getAllocateGenericValueMetadataWithLayoutStringFunctionPointer() :
+@@ -5515,7 +5524,9 @@
+     }
+ 
+     void addValueWitnessTable() {
+-      B.add(asImpl().getValueWitnessTable(false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            asImpl().getValueWitnessTable(false).getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     llvm::Constant *emitNominalTypeDescriptor() {
+@@ -5648,15 +5659,6 @@
+       auto &layout = IGM.getMetadataLayout(Target);
+       auto extraSize = getExtraDataSize(layout);
+       auto extraSizeV = IGM.getSize(extraSize);
+-
+-      // Sign the descriptor.
+-      auto schema = IGF.IGM.getOptions().PointerAuth.TypeDescriptorsAsArguments;
+-      if (schema) {
+-        auto authInfo = PointerAuthInfo::emit(
+-            IGF, schema, nullptr,
+-            PointerAuthEntity::Special::TypeDescriptorAsArgument);
+-        descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
+-      }
+ 
+       return IGF.Builder.CreateCall(
+           getLayoutString() ?
+@@ -5971,7 +5973,8 @@
+                    ? IGM.Context.getAnyObjectType()
+                    : IGM.Context.TheNativeObjectType);
+       auto wtable = IGM.getAddrOfValueWitnessTable(type);
+-      B.add(wtable);
++      addArm64eDataPointer(IGM, B, wtable,
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     void addMetadataFlags() {
+@@ -6042,7 +6045,10 @@
+ 
+     void addValueWitnessTable() {
+       auto type = getTargetType()->getCanonicalType();
+-      B.add(irgen::emitValueWitnessTable(IGM, type, false, false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            irgen::emitValueWitnessTable(IGM, type, false, false)
++                                .getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     void addMetadataFlags() {
+@@ -6081,7 +6087,9 @@
+     }
+ 
+     void addValueWitnessTable() {
+-      B.add(emitValueWitnessTable(/*relative*/ false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            emitValueWitnessTable(/*relative*/ false).getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+ 
+     void flagUnfilledFieldOffset() {
+@@ -6108,7 +6116,9 @@
+     }
+ 
+     void addValueWitnessTable() {
+-      B.add(emitValueWitnessTable(/*relative*/ false).getValue());
++      addArm64eDataPointer(IGM, B,
++                            emitValueWitnessTable(/*relative*/ false).getValue(),
++                            SpecialPointerAuthDiscriminators::ValueWitnessTable);
+     }
+     
+     void addPayloadSize() const {
+--- a/lib/IRGen/GenClass.cpp
++++ b/lib/IRGen/GenClass.cpp
+@@ -1384,15 +1384,15 @@
+       auto dataPtr = emitROData(ForMetaClass, DoesNotHaveUpdateCallback);
+       dataPtr = llvm::ConstantExpr::getPtrToInt(dataPtr, IGM.IntPtrTy);
+ 
+-      llvm::Constant *fields[] = {
+-        rootPtr,
+-        superPtr,
+-        IGM.getObjCEmptyCachePtr(),
+-        IGM.getObjCEmptyVTablePtr(),
+-        dataPtr
+-      };
+-      auto init = llvm::ConstantStruct::get(IGM.ObjCClassStructTy,
+-                                            makeArrayRef(fields));
++      ConstantInitBuilder builder(IGM);
++      auto fields = builder.beginStruct(IGM.ObjCClassStructTy);
++      addArm64eDataPointer(IGM, fields, rootPtr,
++                          SpecialPointerAuthDiscriminators::ObjCISA);
++      addArm64eDataPointer(IGM, fields, superPtr,
++                          SpecialPointerAuthDiscriminators::ObjCSuperclass);
++      fields.add(IGM.getObjCEmptyCachePtr());
++      fields.add(IGM.getObjCEmptyVTablePtr());
++      fields.add(dataPtr);
+       llvm::Constant *uncastMetaclass;
+       if (specializedGenericType) {
+         uncastMetaclass =
+@@ -1403,7 +1403,7 @@
+             IGM.getAddrOfMetaclassObject(getClass(), ForDefinition);
+       }
+       auto metaclass = cast<llvm::GlobalVariable>(uncastMetaclass);
+-      metaclass->setInitializer(init);
++      fields.finishAndSetAsInitializer(metaclass);
+     }
+     
+   private:
+@@ -1908,7 +1908,10 @@
+       }
+       llvm::Constant *methodListPtr =
+           buildMethodList(methods, namePrefix, linkage);
+-      builder.add(methodListPtr);
++      if (isBuildingProtocol())
++        builder.add(methodListPtr);
++      else
++        addArm64eDataPointer(IGM, builder, methodListPtr, 0xC310);
+     }
+ 
+     llvm::Constant *buildOptExtendedMethodTypes() {
+--- a/lib/IRGen/GenHeap.cpp
++++ b/lib/IRGen/GenHeap.cpp
+@@ -1853,6 +1853,10 @@
+ /// Given a non-tagged object pointer, load a pointer to its class object.
+ llvm::Value *irgen::emitLoadOfObjCHeapMetadataRef(IRGenFunction &IGF,
+                                                   llvm::Value *object) {
++  // ObjC packed ISAs cannot be decoded with the arm64 mask on arm64e.
++  if (getArm64eDataPointerAuthSchema(
++          IGF.IGM, SpecialPointerAuthDiscriminators::ObjCISA))
++    return emitHeapMetadataRefForUnknownHeapObject(IGF, object);
+   if (IGF.IGM.TargetInfo.hasISAMasking()) {
+     object = IGF.Builder.CreateBitCast(object,
+                                        IGF.IGM.IntPtrTy->getPointerTo());
+@@ -1887,6 +1891,11 @@
+         slot, IGF.IGM.TypeMetadataPtrTy, IGF.IGM.getPointerAlignment()));
+     if (IGF.IGM.EnableValueNames && object->hasName())
+       metadata->setName(llvm::Twine(object->getName()) + ".metadata");
++    if (auto schema = getArm64eDataPointerAuthSchema(
++            IGF.IGM, SpecialPointerAuthDiscriminators::ObjCISA))
++      return emitPointerAuthAuth(
++          IGF, metadata,
++          PointerAuthInfo::emit(IGF, schema, slot, PointerAuthEntity()));
+     return metadata;
+   }
+       
+--- a/lib/IRGen/GenProto.cpp
++++ b/lib/IRGen/GenProto.cpp
+@@ -1128,6 +1128,14 @@
+     IGF.IGM.getAddrOfProtocolConformanceDescriptor(
+                                              conformance->getRootConformance());
+ 
++  if (auto schema =
++          IGF.IGM.getOptions().PointerAuth.ProtocolConformanceDescriptorsAsArguments)
++    conformanceDescriptor = cast<llvm::Constant>(emitPointerAuthSign(
++        IGF, conformanceDescriptor,
++        PointerAuthInfo::emit(
++            IGF, schema, nullptr,
++            PointerAuthEntity::Special::ProtocolConformanceDescriptorAsArgument)));
++
+   // Emit the source metadata if we haven't yet.
+   if (!*srcMetadataCache) {
+     *srcMetadataCache = IGF.emitAbstractTypeMetadataRef(
+@@ -1406,7 +1414,10 @@
+       if (isRelative)
+         Table.addRelativeAddress(descriptor);
+       else
+-        Table.addBitCast(descriptor, IGM.Int8PtrTy);
++        Table.addSignedPointer(
++            llvm::ConstantExpr::getBitCast(descriptor, IGM.Int8PtrTy),
++            IGM.getOptions().PointerAuth.ProtocolConformanceDescriptors,
++            PointerAuthEntity::Special::ProtocolConformanceDescriptor);
+     }
+ 
+     /// A base protocol is witnessed by a pointer to the conformance
+--- a/lib/IRGen/GenDecl.cpp
++++ b/lib/IRGen/GenDecl.cpp
+@@ -3501,6 +3501,14 @@
+       .to(gotEquivalent);
+   }
+ 
++  // Imported descriptors and witness tables each have their own data schema.
++  uint16_t discriminator = entity.getGOTPointerAuthDiscriminator();
++  if (discriminator) {
++    if (auto schema = getArm64eDataPointerAuthSchema(IGM, discriminator))
++      gotEquivalent->setInitializer(IGM.getConstantSignedPointer(
++          global, schema, PointerAuthEntity(), gotEquivalent));
++  }
++
+   // Context descriptor pointers need to be signed.
+   // TODO: We should really sign a pointer to *any* code entity or true-const
+   // metadata structure that may reference data structures with function
+--- a/lib/IRGen/GenFunc.cpp
++++ b/lib/IRGen/GenFunc.cpp
+@@ -2415,8 +2415,15 @@
+   
+   // Store the block header.
+   auto layout = IGF.IGM.DataLayout.getStructLayout(IGF.IGM.ObjCBlockStructTy);
+-  IGF.Builder.CreateStore(NSConcreteStackBlock,
+-                          IGF.Builder.CreateStructGEP(headerAddr, 0, layout));
++  auto isaAddr = IGF.Builder.CreateStructGEP(headerAddr, 0, layout);
++  llvm::Value *isa = NSConcreteStackBlock;
++  if (auto schema = getArm64eDataPointerAuthSchema(
++          IGF.IGM, SpecialPointerAuthDiscriminators::ObjCISA))
++    isa = emitPointerAuthSign(
++        IGF, isa,
++        PointerAuthInfo::emit(IGF, schema, isaAddr.getAddress(),
++                             PointerAuthEntity()));
++  IGF.Builder.CreateStore(isa, isaAddr);
+   IGF.Builder.CreateStore(flagsVal,
+                           IGF.Builder.CreateStructGEP(headerAddr, 1, layout));
+   IGF.Builder.CreateStore(reserved,
+--- a/lib/IRGen/GenCall.cpp
++++ b/lib/IRGen/GenCall.cpp
+@@ -4093,6 +4093,17 @@
+   auto prototype =
+     IGF.IGM.getOpaquePtr(IGF.IGM.getAddrOfContinuationPrototype(fnType));
+ 
++  // The signed prototype describes how LLVM signs each resume function.
++  auto schemaAndEntity = getCoroutineResumeFunctionPointerAuth(IGF.IGM, fnType);
++  if (schemaAndEntity.first) {
++    llvm::Constant *address = nullptr;
++    if (schemaAndEntity.first.isAddressDiscriminated())
++      address = IGF.IGM.getSize(
++          Size(llvm::GlobalPtrAuthInfo::AddrDiscriminator_UseCoroStorage));
++    prototype = IGF.IGM.getConstantSignedPointer(
++        prototype, schemaAndEntity.first, schemaAndEntity.second, address);
++  }
++
+   // Use malloc and free as our allocator.
+   auto allocFn = IGF.IGM.getOpaquePtr(IGF.IGM.getMallocFn());
+   auto deallocFn = IGF.IGM.getOpaquePtr(IGF.IGM.getFreeFn());
+--- a/include/swift/Remote/MetadataReader.h
++++ b/include/swift/Remote/MetadataReader.h
+@@ -625,10 +625,11 @@
+     // pointer's referenced address.
+     TargetValueWitnessTable<Runtime> VWT;
+     auto ValueWitnessTableAddrAddr = MetadataAddress - sizeof(StoredPointer);
+-    StoredPointer ValueWitnessTableAddr;
++    StoredSignedPointer SignedValueWitnessTableAddr;
+     if (!Reader->readInteger(RemoteAddress(ValueWitnessTableAddrAddr),
+-                             &ValueWitnessTableAddr))
++                             &SignedValueWitnessTableAddr))
+       return llvm::None;
++    auto ValueWitnessTableAddr = stripSignedPointer(SignedValueWitnessTableAddr);
+     if (!Reader->readBytes(RemoteAddress(ValueWitnessTableAddr),
+                            (uint8_t *)&VWT, sizeof(VWT)))
+       return llvm::None;
+--- a/lib/IRGen/IRGen.cpp
++++ b/lib/IRGen/IRGen.cpp
+@@ -698,9 +698,9 @@
+   opts.ProtocolWitnesses =
+     PointerAuthSchema(codeKey, /*address*/ true, Discrimination::Decl);
+   opts.ProtocolAssociatedTypeAccessFunctions =
+-    PointerAuthSchema(codeKey, /*address*/ true, Discrimination::Decl);
++    PointerAuthSchema(dataKey, /*address*/ true, Discrimination::Decl);
+   opts.ProtocolAssociatedTypeWitnessTableAccessFunctions =
+-    PointerAuthSchema(codeKey, /*address*/ true, Discrimination::Decl);
++    PointerAuthSchema(dataKey, /*address*/ true, Discrimination::Decl);
+   opts.SwiftClassMethods =
+     PointerAuthSchema(codeKey, /*address*/ true, Discrimination::Decl);
+   opts.SwiftClassMethodPointers =
+--- a/lib/IRGen/GenThunk.cpp
++++ b/lib/IRGen/GenThunk.cpp
+@@ -394,6 +394,7 @@
+   auto asyncEntity = LinkEntity::forAsyncFunctionPointer(entity);
+   auto *var = cast<llvm::GlobalVariable>(
+       getAddrOfLLVMVariable(asyncEntity, init, DebugTypeInfo()));
++  setTrueConstGlobal(var);
+   return var;
+ }
+ 
+--- a/lib/IRGen/IRGenSIL.cpp
++++ b/lib/IRGen/IRGenSIL.cpp
+@@ -5989,6 +5989,18 @@
+                              i->hasNoNestedConflict());
+ }
+ 
++static PointerAuthInfo getImportedPtrAuthFieldValueAuthInfo(
++    IRGenFunction &IGF, SILType fieldType, llvm::Value *storageAddress) {
++  if (auto objectType = fieldType.getOptionalObjectType())
++    fieldType = objectType;
++  auto fnType = fieldType.getAs<SILFunctionType>();
++  if (!fnType)
++    return PointerAuthInfo();
++  return PointerAuthInfo::emit(
++      IGF, IGF.IGM.getOptions().PointerAuth.FunctionPointers, storageAddress,
++      PointerAuthEntity(fnType));
++}
++
+ void IRGenSILFunction::visitBeginAccessInst(BeginAccessInst *access) {
+   Address addr = getLoweredAddress(access->getOperand());
+   switch (getEffectiveEnforcement(*this, access)) {
+@@ -6053,12 +6065,8 @@
+       Builder.emitBlock(resignNonNull);
+       auto oldAuthInfo =
+           PointerAuthInfo::emit(*this, pointerAuthQual, pointerToSignedFptr);
+-      // ClangImporter imports the c function pointer as an optional type.
+-      PointerAuthEntity entity(
+-          sea->getType().getOptionalObjectType().getAs<SILFunctionType>());
+-      auto newAuthInfo = PointerAuthInfo::emit(
+-          *this, IGM.getOptions().PointerAuth.FunctionPointers,
+-          pointerToSignedFptr, entity);
++      auto newAuthInfo = getImportedPtrAuthFieldValueAuthInfo(
++          *this, sea->getType(), pointerToSignedFptr);
+       auto *resignedFptr =
+           emitPointerAuthResign(*this, signedFptr, oldAuthInfo, newAuthInfo);
+       Builder.CreateStore(resignedFptr, tempAddressToIntPtr,
+@@ -6202,12 +6210,8 @@
+     Builder.emitBlock(resignNonNull);
+ 
+     // If non-null, resign
+-    // ClangImporter imports the c function pointer as an optional type.
+-    PointerAuthEntity entity(
+-        sea->getType().getOptionalObjectType().getAs<SILFunctionType>());
+-    auto oldAuthInfo = PointerAuthInfo::emit(
+-        *this, IGM.getOptions().PointerAuth.FunctionPointers,
+-        tempAddress.getAddress(), entity);
++    auto oldAuthInfo = getImportedPtrAuthFieldValueAuthInfo(
++        *this, sea->getType(), tempAddress.getAddress());
+     auto newAuthInfo =
+         PointerAuthInfo::emit(*this, pointerAuthQual, pointerToSignedFptr);
+     auto *signedFptr = emitPointerAuthResign(*this, tempAddressValue,
+--- a/include/swift/IRGen/Linking.h
++++ b/include/swift/IRGen/Linking.h
+@@ -1530,6 +1530,7 @@
+   }
+   bool isValueWitness() const { return getKind() == Kind::ValueWitness; }
+   bool isContextDescriptor() const;
++  uint16_t getGOTPointerAuthDiscriminator() const;
+   CanType getType() const {
+     assert(isTypeKind(getKind()));
+     return CanType(reinterpret_cast<TypeBase*>(Pointer));
+--- a/lib/IRGen/Linking.cpp
++++ b/lib/IRGen/Linking.cpp
+@@ -892,6 +892,26 @@
+ 
+   }
+   llvm_unreachable("bad link entity kind");
++}
++
++uint16_t LinkEntity::getGOTPointerAuthDiscriminator() const {
++  switch (getKind()) {
++  case Kind::ProtocolConformanceDescriptor:
++    return SpecialPointerAuthDiscriminators::ProtocolConformanceDescriptor;
++  case Kind::ValueWitnessTable:
++    return SpecialPointerAuthDiscriminators::ValueWitnessTable;
++  case Kind::AssociatedTypeDescriptor:
++  case Kind::AssociatedConformanceDescriptor:
++  case Kind::BaseConformanceDescriptor:
++    return 0x7D4C; // ptrauth_string_discriminator("ProtocolRequirement")
++  case Kind::MethodDescriptor:
++  case Kind::MethodDescriptorDerivative:
++  case Kind::MethodDescriptorInitializer:
++  case Kind::MethodDescriptorAllocator:
++    return isa<ProtocolDecl>(getDecl()->getDeclContext()) ? 0x7D4C : 0x675A;
++  default:
++    return 0;
++  }
+ }
+ 
+ bool LinkEntity::isContextDescriptor() const {
+--- /dev/null
++++ b/test/IRGen/arm64e-native-data.swift
+@@ -0,0 +1,26 @@
++// RUN: %target-swift-frontend -emit-ir -module-name NativeData %s | %FileCheck %s
++// REQUIRES: CPU=arm64e
++// REQUIRES: objc_interop
++
++import Foundation
++
++// CHECK-DAG: i32 2, i64 {{.*}}, i64 11839 }, section "llvm.ptrauth"
++// CHECK-DAG: i32 2, i64 {{.*}}, i64 27361 }, section "llvm.ptrauth"
++// CHECK-DAG: i32 2, i64 {{.*}}, i64 46507 }, section "llvm.ptrauth"
++// CHECK-DAG: i32 2, i64 {{.*}}, i64 49936 }, section "llvm.ptrauth"
++// CHECK-DAG: i32 2, i64 {{.*}}, i64 50923 }, section "llvm.ptrauth"
++
++@objc(NativeDataObject) public class NativeDataObject: NSObject {
++  @objc public dynamic func value() -> Int { 42 }
++}
++public enum NativeDataError: Error { case failed }
++public class NativeDataSwiftObject { public init() {} }
++
++// CHECK-LABEL: define {{.*}}@native_data_size
++// CHECK: @llvm.ptrauth.blend{{.*}}i64 11839
++// CHECK: @llvm.ptrauth.auth{{.*}}i32 2
++@_silgen_name("native_data_size")
++public func nativeDataSize<T>(_ value: T) -> Int { MemoryLayout<T>.size }
++
++public func nativeDataThrow() throws { throw NativeDataError.failed }
++
+--- /dev/null
++++ b/test/IRGen/arm64e-native-fields.swift
+@@ -0,0 +1,29 @@
++// RUN: %target-swift-frontend -emit-ir -module-name NativeFieldsTest -enable-import-ptrauth-field-function-pointers -I %S/Inputs/NativePtrauthFields %s | %FileCheck %s
++// REQUIRES: CPU=arm64e
++
++import NativePtrauthFields
++
++// CHECK-LABEL: define {{.*}}@native_read_data
++// CHECK: @llvm.ptrauth.auth{{.*}}i32 2
++// CHECK-NOT: @llvm.ptrauth.resign
++// CHECK: ret
++@_silgen_name("native_read_data")
++public func readNativeData(_ fields: UnsafeMutablePointer<NativeFields>) -> Int32 {
++  return fields.pointee.required.pointee
++}
++
++// CHECK-LABEL: define {{.*}}@native_write_data
++// CHECK: @llvm.ptrauth.sign{{.*}}i32 2
++@_silgen_name("native_write_data")
++public func writeNativeData(_ fields: UnsafeMutablePointer<NativeFields>,
++                            _ value: UnsafeMutablePointer<Int32>) {
++  fields.pointee.required = value
++}
++
++// A nonnull C function pointer must still be re-signed for a C call.
++// CHECK-LABEL: define {{.*}}@native_read_function
++// CHECK: @llvm.ptrauth.resign
++@_silgen_name("native_read_function")
++public func readNativeFunction(_ fields: UnsafeMutablePointer<NativeFields>) -> Int32 {
++  return fields.pointee.function(40)
++}
+--- /dev/null
++++ b/test/IRGen/Inputs/NativePtrauthFields/module.modulemap
+@@ -0,0 +1 @@
++module NativePtrauthFields { header "ImportedFields.h" export * }
+--- /dev/null
++++ b/test/IRGen/Inputs/NativePtrauthFields/ImportedFields.h
+@@ -0,0 +1,16 @@
++#include <stdint.h>
++#include <ptrauth.h>
++
++#if __has_feature(ptrauth_calls)
++#define NATIVE_PTRAUTH(key, address, extra) __ptrauth(key, address, extra)
++#else
++#define NATIVE_PTRAUTH(key, address, extra)
++#endif
++
++typedef struct {
++  int32_t * NATIVE_PTRAUTH(2, 1, 4321) _Nullable optional;
++  int32_t * NATIVE_PTRAUTH(2, 1, 4321) _Nonnull required;
++  int32_t (* NATIVE_PTRAUTH(0, 1, 1234) _Nonnull function)(int32_t);
++} NativeFields;
++
++NativeFields * _Nonnull nativeFields(void);
+--- a/test/IRGen/ptrauth_generalized_accessors.swift
++++ b/test/IRGen/ptrauth_generalized_accessors.swift
+@@ -5,26 +5,35 @@
+ // REQUIRES: CPU=arm64e
+ // REQUIRES: OS=ios
+ 
+-// UNSUPPORTED: CPU=arm64e
++// Skipping one accessor: Value -> C
+ 
+-// CHECK:       [[PROTOTYPE_HOLDER_INOUT_VALUE:@"\$s29ptrauth_generalized_accessors6HolderVIetMl_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVIetMl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT:3909]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_HOLDER_BORROWED_VALUE:@"\$s29ptrauth_generalized_accessors6HolderVIetMg_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVIetMg_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_VALUE:51173]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_HOLDER_INOUT_VALUE_1:@"\$s29ptrauth_generalized_accessors6HolderVIetMl_TC.ptrauth.1"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVIetMl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OPAQUEOWNER_INOUT_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVIetMl_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVIetMl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OPAQUEOWNER_OPAQUE_INOUT_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVIetWl_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVIetWl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OPAQUEOWNER_OPAQUE_BORROWED_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVIetWn_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVIetWn_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_OPAQUE:56769]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OPAQUEOWNER_BORROWED_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVIetMg_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVIetMg_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_HOLDER:11564]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OWNER_INOUT_HOLDER:@"\$s29ptrauth_generalized_accessors5OwnerVIetWl_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors5OwnerVIetWl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
+-// CHECK:       [[PROTOTYPE_OWNER_BORROWED_HOLDER:@"\$s29ptrauth_generalized_accessors5OwnerVIetWn_TC.ptrauth"]] =
+-// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors5OwnerVIetWn_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_HOLDER]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_HOLDER_INOUT_VALUE:@"\$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAlYl_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAlYl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT:3909]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_HOLDER_BORROWED_VALUE:@"\$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAgYg_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAgYg_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_VALUE:51173]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_HOLDER_INOUT_VALUE_1:@"\$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAlYl_TC.ptrauth.1"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors6HolderVAA5ValueVIetMAlYl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
++
++// Skipping one accessor: Owner -> Holder
++
++// CHECK:       [[PROTOTYPE_OPAQUEOWNER_INOUT_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIetMAlYl_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIetMAlYl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
++
++// Other stuff...
++
++// CHECK:       [[PROTOTYPE_OPAQUEOWNER_OPAQUE_INOUT_HOLDER:@"\$sxq_r0_ly29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIsetWAlYl_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$sxq_r0_ly29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIsetWAlYl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_OPAQUEOWNER_OPAQUE_BORROWED_HOLDER:@"\$sxq_r0_ly29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIsetWAnYn_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$sxq_r0_ly29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIsetWAnYn_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_OPAQUE:56769]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_OPAQUEOWNER_BORROWED_HOLDER:@"\$s29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIetMAgYg_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$s29ptrauth_generalized_accessors11OpaqueOwnerVAA6HolderVIetMAgYg_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_HOLDER:11564]] }, section "llvm.ptrauth"
++// CHECK:       [[PROTOTYPE_OWNER_INOUT_HOLDER:@"\$sx29ptrauth_generalized_accessors6HolderVlyAA5OwnerVIsetWAlYl_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$sx29ptrauth_generalized_accessors6HolderVlyAA5OwnerVIsetWAlYl_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_INOUT]] }, section "llvm.ptrauth"
++
++// Note: This one is slightly different from most of the other checks as `self` has to be taken indirectly but the yield value doesn't, so the param is @in_guaranteed but the return is @guaranteed.
++
++// CHECK:       [[PROTOTYPE_OWNER_BORROWED_HOLDER:@"\$sx29ptrauth_generalized_accessors6HolderVlyAA5OwnerVIsetWAnYg_TC.ptrauth"]] =
++// CHECK-SAME:     private constant { i8*, i32, i64, i64 } { i8* bitcast (void (i8*, i1)* @"$sx29ptrauth_generalized_accessors6HolderVlyAA5OwnerVIsetWAnYg_TC" to i8*), i32 0, i64 1, i64 [[PTRAUTH_BORROWED_HOLDER]] }, section "llvm.ptrauth"
+ 
+ public class C {}
+ 
+@@ -95,13 +104,13 @@
+ 
+ // CHECK-LABEL: define {{.*}} @"$s29ptrauth_generalized_accessors17testInOutConcrete6holderyAA6HolderVz_tF"
+ // CHECK:         [[T0:%.*]] = alloca [32 x i8], align 8
+-// CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds [32 x i8], [32 x i8]* [[T0]], i32 0, i32 0
++// CHECK:    [[BUFFER:%.*]] = getelementptr inbounds [32 x i8], [32 x i8]* [[T0]], i32 0, i32 0
+ // CHECK:         [[T0:%.*]] = call swiftcc { i8*, %T29ptrauth_generalized_accessors5ValueV* } {{.*}} [[BUFFER]]
+ // CHECK:         [[T1:%.*]] = extractvalue { i8*, %T29ptrauth_generalized_accessors5ValueV* } [[T0]], 0
+ // CHECK:         call swiftcc void @"$s29ptrauth_generalized_accessors5ValueV6mutateyyF"
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testInOutConcrete(holder: inout Holder) {
+   holder.value.mutate()
+@@ -114,7 +123,7 @@
+ // CHECK:         [[T1:%.*]] = extractvalue { i8*, %T29ptrauth_generalized_accessors1CC* } [[T0]], 0
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_BORROWED_VALUE]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_BORROWED_VALUE]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testBorrowedConcrete(holder: inout Holder) {
+   holder.value.use()
+@@ -128,7 +137,7 @@
+ // CHECK:         call swiftcc void @"$s29ptrauth_generalized_accessors5ValueV6mutateyyF"
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testInOut<T: Owning>(value: inout T) {
+   value.holder.value.mutate()
+@@ -141,7 +150,7 @@
+ // CHECK:         [[T1:%.*]] = extractvalue { i8*, %T29ptrauth_generalized_accessors1CC* } [[T0]], 0
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_BORROWED_HOLDER]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_BORROWED_HOLDER]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testBorrowed<T: Owning>(value: inout T) {
+   value.holder.value.use()
+@@ -155,7 +164,7 @@
+ // CHECK:         call swiftcc void @"$s29ptrauth_generalized_accessors5ValueV6mutateyyF"
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_INOUT]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testOpaqueInOut<T: OpaqueOwning>(value: inout T)
+     where T.Holding == Holder {
+@@ -169,7 +178,7 @@
+ // CHECK:         [[T1:%.*]] = extractvalue { i8*, %swift.opaque* } [[T0]], 0
+ // CHECK:         [[RESUME:%.*]] = bitcast i8* [[T1]] to void (i8*, i1)*
+ // CHECK-NEXT:    [[T0:%.*]] = ptrtoint i8* [[BUFFER]] to i64
+-// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend.i64(i64 [[T0]], i64 [[PTRAUTH_OPAQUE]])
++// CHECK-NEXT:    [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 [[PTRAUTH_OPAQUE]])
+ // CHECK-NEXT:    call swiftcc void [[RESUME]](i8* noalias dereferenceable(32) [[BUFFER]], i1 false) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+ public func testOpaqueBorrowed<T: OpaqueOwning>(value: inout T)
+     where T.Holding == Holder {

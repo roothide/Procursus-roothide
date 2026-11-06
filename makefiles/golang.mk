@@ -45,6 +45,8 @@ golang: golang-setup
 		CGO_LDFLAGS="-Os -L$(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib" \
 		./make.bash
 	GOTARGET="$(GOLANG_OS)_$(shell echo $(MEMO_TARGET) | cut -f2 -d-)"; \
+	# remove host-specific go executable \
+	rm -f "$(BUILD_WORK)/golang/bin/go_$${GOTARGET}_exec"; \
 	cd $(BUILD_WORK)/golang/pkg/tool/; \
 	for i in *; do \
 		if [ "$$i" != "$$GOTARGET" ]; then \

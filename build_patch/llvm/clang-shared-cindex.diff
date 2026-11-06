@@ -1,0 +1,42 @@
+# This branch pulls BackendUtil.cpp from libclangCodeGen.a into both libclang
+# and c-index-test, even when llvm.mk requests CLANG_LINK_CLANG_DYLIB=ON.
+# Loading libclang into c-index-test runs both copies' option initializers.
+# In this configuration, both register with the same libLLVM.dylib registry
+# (LLVM_LINK_LLVM_DYLIB=ON), causing c-index-test to abort before main() with:
+#   Option 'sanitizer-early-opt-ep' registered more than once!
+#
+# Linking libclangCodeGen.a alone does not imply a conflict: the same option
+# initializer must be retained in multiple loaded images and use the same LLVM
+# registry. Targets with private LLVM registries require separate analysis.
+#
+# Make both targets honor CLANG_LINK_CLANG_DYLIB and share libclang-cpp instead
+# of embedding separate Clang implementations. Changing only one target still
+# leaves an embedded copy alongside the copy in libclang-cpp. The new dynamic
+# dependency requires libclang1-16 to depend on the matching libclang-cpp16.
+# Related upstream discussion: https://reviews.llvm.org/D67321
+
+--- a/clang/tools/libclang/CMakeLists.txt
++++ b/clang/tools/libclang/CMakeLists.txt
+@@ -83,6 +83,10 @@
+   list(APPEND LIBS clangARCMigrate)
+ endif ()
+
++if(CLANG_LINK_CLANG_DYLIB)
++  set(LIBS clang-cpp)
++endif()
++
+ if (HAVE_LIBDL)
+   list(APPEND LIBS ${CMAKE_DL_LIBS})
+ elseif (CLANG_BUILT_STANDALONE)
+--- a/clang/tools/c-index-test/CMakeLists.txt
++++ b/clang/tools/c-index-test/CMakeLists.txt
+@@ -35,6 +35,9 @@
+     PRIVATE
+     libclang
+     ${INDEXSTORE_LIB}
++  )
++  clang_target_link_libraries(c-index-test
++    PRIVATE
+     clangAST
+     clangBasic
+     clangCodeGen

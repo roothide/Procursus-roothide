@@ -1,0 +1,623 @@
+--- a/clang/lib/CodeGen/CGObjCMac.cpp
++++ b/clang/lib/CodeGen/CGObjCMac.cpp
+@@ -46,6 +46,17 @@
+ using namespace CodeGen;
+ 
+ namespace {
++
++static void addObjCDataPointer(CodeGenModule &CGM,
++                               ConstantAggregateBuilderBase &Builder,
++                               llvm::Constant *Pointer,
++                               uint16_t Discriminator) {
++  if (Pointer->isNullValue())
++    return Builder.add(Pointer);
++  Builder.addSignedPointer(Pointer,
++                           CGM.getArm64eDataPointerAuthSchema(Discriminator),
++                           GlobalDecl(), QualType());
++}
+ 
+ // FIXME: We should find a nicer way to make the labels for metadata, string
+ // concatenation is lame.
+@@ -2004,7 +2015,7 @@
+   auto Fields = Builder.beginStruct(NSConstantStringType);
+ 
+   // Class pointer.
+-  Fields.add(Class);
++  addObjCDataPointer(CGM, Fields, Class, 0x6AE1);
+ 
+   // String pointer.
+   llvm::Constant *C =
+@@ -6367,11 +6378,12 @@
+         methods.push_back(MD);
+   }
+ 
+-  values.add(emitMethodList(ID->getObjCRuntimeNameAsString(),
+-                            (flags & NonFragileABI_Class_Meta)
+-                               ? MethodListType::ClassMethods
+-                               : MethodListType::InstanceMethods,
+-                            methods));
++  auto *MethodList = emitMethodList(ID->getObjCRuntimeNameAsString(),
++                                    (flags & NonFragileABI_Class_Meta)
++                                        ? MethodListType::ClassMethods
++                                        : MethodListType::InstanceMethods,
++                                    methods);
++  addObjCDataPointer(CGM, values, MethodList, 0xC310);
+ 
+   const ObjCInterfaceDecl *OID = ID->getClassInterface();
+   assert(OID && "CGObjCNonFragileABIMac::BuildClassRoTInitializer");
+@@ -6422,9 +6434,9 @@
+                                          bool HiddenVisibility) {
+   ConstantInitBuilder builder(CGM);
+   auto values = builder.beginStruct(ObjCTypes.ClassnfABITy);
+-  values.add(IsAGV);
++  addObjCDataPointer(CGM, values, IsAGV, 0x6AE1);
+   if (SuperClassGV) {
+-    values.add(SuperClassGV);
++    addObjCDataPointer(CGM, values, SuperClassGV, 0xB5AB);
+   } else {
+     values.addNullPointer(ObjCTypes.ClassnfABIPtrTy);
+   }
+@@ -6699,8 +6711,8 @@
+       listName, MethodListType::CategoryInstanceMethods, instanceMethods);
+   auto classMethodList = emitMethodList(
+       listName, MethodListType::CategoryClassMethods, classMethods);
+-  values.add(instanceMethodList);
+-  values.add(classMethodList);
++  addObjCDataPointer(CGM, values, instanceMethodList, 0xC310);
++  addObjCDataPointer(CGM, values, classMethodList, 0xC310);
+   // Keep track of whether we have actual metadata to emit.
+   bool isEmptyCategory =
+       instanceMethodList->isNullValue() && classMethodList->isNullValue();
+--- a/clang/lib/CodeGen/CodeGenModule.cpp
++++ b/clang/lib/CodeGen/CodeGenModule.cpp
+@@ -5626,7 +5626,10 @@
+   auto Fields = Builder.beginStruct(STy);
+ 
+   // Class pointer.
+-  Fields.add(cast<llvm::Constant>(CFConstantStringClassRef));
++  Fields.addSignedPointer(cast<llvm::Constant>(CFConstantStringClassRef),
++                          IsSwiftABI ? PointerAuthSchema()
++                                     : getArm64eDataPointerAuthSchema(0x6AE1),
++                          GlobalDecl(), QualType());
+ 
+   // Flags.
+   if (IsSwiftABI) {
+--- a/clang/lib/CodeGen/CGBlocks.cpp
++++ b/clang/lib/CodeGen/CGBlocks.cpp
+@@ -829,7 +829,7 @@
+   Address blockAddr = blockInfo.LocalAddress;
+   assert(blockAddr.isValid() && "block has no address!");
+ 
+-  llvm::Constant *isa;
++  llvm::Value *isa;
+   llvm::Constant *descriptor;
+   BlockFlags flags;
+   if (!IsOpenCL) {
+@@ -878,6 +878,12 @@
+     };
+ 
+     if (!IsOpenCL) {
++      if (auto Schema = CGM.getArm64eDataPointerAuthSchema(0x6AE1)) {
++        auto AuthInfo = EmitPointerAuthInfo(
++            Schema, projectField(index, "block.isa").getPointer(), GlobalDecl(),
++            QualType());
++        isa = EmitPointerAuthSign(AuthInfo, isa);
++      }
+       addHeaderField(isa, getPointerSize(), "block.isa");
+       addHeaderField(llvm::ConstantInt::get(IntTy, flags.getBitMask()),
+                      getIntSize(), "block.flags");
+@@ -1360,7 +1366,9 @@
+     if (IsWindows)
+       fields.addNullPointer(CGM.Int8PtrPtrTy);
+     else
+-      fields.add(CGM.getNSConcreteGlobalBlock());
++      fields.addSignedPointer(CGM.getNSConcreteGlobalBlock(),
++                              CGM.getArm64eDataPointerAuthSchema(0x6AE1),
++                              GlobalDecl(), QualType());
+ 
+     // __flags
+     BlockFlags flags = BLOCK_IS_GLOBAL | BLOCK_HAS_SIGNATURE;
+--- a/clang/lib/CodeGen/CGClass.cpp
++++ b/clang/lib/CodeGen/CGClass.cpp
+@@ -2591,10 +2591,9 @@
+   VTableField = Builder.CreateElementBitCast(VTableField, VTablePtrTy);
+   VTableAddressPoint = Builder.CreateBitCast(VTableAddressPoint, VTablePtrTy);
+ 
+-  if (auto &Schema = CGM.getCodeGenOpts().PointerAuth.CXXVTablePointers) {
+-    CGPointerAuthInfo PointerAuth = EmitPointerAuthInfo(Schema, nullptr,
+-                                                        GlobalDecl(),
+-                                                        QualType());
++  if (auto Schema = CGM.getVTablePointerAuthSchema(Vptr.Base.getBase())) {
++    CGPointerAuthInfo PointerAuth = EmitPointerAuthInfo(
++        Schema, VTableField.getPointer(), GlobalDecl(), QualType());
+     VTableAddressPoint = EmitPointerAuthSign(PointerAuth, VTableAddressPoint);
+   }
+ 
+@@ -2697,10 +2696,9 @@
+   TBAAAccessInfo TBAAInfo = CGM.getTBAAVTablePtrAccessInfo(VTableTy);
+   CGM.DecorateInstructionWithTBAA(VTable, TBAAInfo);
+ 
+-  if (auto &Schema = CGM.getCodeGenOpts().PointerAuth.CXXVTablePointers) {
+-    CGPointerAuthInfo PointerAuth = EmitPointerAuthInfo(Schema, nullptr,
+-                                                        GlobalDecl(),
+-                                                        QualType());
++  if (auto Schema = CGM.getVTablePointerAuthSchema(RD)) {
++    CGPointerAuthInfo PointerAuth = EmitPointerAuthInfo(
++        Schema, VTablePtrSrc.getPointer(), GlobalDecl(), QualType());
+     VTable = cast<llvm::Instruction>(EmitPointerAuthAuth(PointerAuth, VTable));
+   }
+ 
+--- a/clang/lib/CodeGen/CodeGenModule.h
++++ b/clang/lib/CodeGen/CodeGenModule.h
+@@ -966,6 +966,8 @@
+   getPointerAuthOtherDiscriminator(const PointerAuthSchema &schema,
+                                    GlobalDecl schemaDecl, QualType schemaType);
+   uint16_t getPointerAuthDeclDiscriminator(GlobalDecl GD);
++  PointerAuthSchema getArm64eDataPointerAuthSchema(uint16_t Discriminator);
++  PointerAuthSchema getVTablePointerAuthSchema(const CXXRecordDecl *RD);
+ 
+   // Return the function body address of the given function.
+   llvm::Constant *GetFunctionStart(const ValueDecl *Decl);
+--- a/clang/lib/CodeGen/CGPointerAuth.cpp
++++ b/clang/lib/CodeGen/CGPointerAuth.cpp
+@@ -16,6 +16,8 @@
+ #include "CodeGenFunction.h"
+ #include "CodeGenModule.h"
+ #include "CGCall.h"
++#include "clang/AST/Mangle.h"
++#include "clang/AST/RecordLayout.h"
+ #include "clang/AST/StableHash.h"
+ #include "clang/CodeGen/ConstantInitBuilder.h"
+ #include "clang/CodeGen/CodeGenABITypes.h"
+@@ -28,6 +30,42 @@
+ 
+ using namespace clang;
+ using namespace CodeGen;
++
++PointerAuthSchema
++CodeGenModule::getArm64eDataPointerAuthSchema(uint16_t Discriminator) {
++  const auto &Opts = getLangOpts();
++  if (!getTriple().isArm64e() || !getTriple().isOSBinFormatMachO() ||
++      !Opts.PointerAuthCalls || Opts.SoftPointerAuth || Opts.Kernel ||
++      Opts.AppleKext)
++    return PointerAuthSchema();
++  return PointerAuthSchema(PointerAuthSchema::ARM8_3Key::ASDA, true,
++                           PointerAuthSchema::Discrimination::Constant,
++                           Discriminator);
++}
++
++PointerAuthSchema
++CodeGenModule::getVTablePointerAuthSchema(const CXXRecordDecl *RD) {
++  const auto &Default = getCodeGenOpts().PointerAuth.CXXVTablePointers;
++  if (!Default || !getArm64eDataPointerAuthSchema(0))
++    return Default;
++  if (!RD->isPolymorphic())
++    return PointerAuthSchema();
++  while (const auto *Base =
++             getContext().getASTRecordLayout(RD).getPrimaryBase()) {
++    if (Base == RD || !Base->isPolymorphic())
++      break;
++    RD = Base;
++  }
++  // Darwin's std::type_info ABI retains an undiscriminated vptr.
++  if (RD->getQualifiedNameAsString() == "std::type_info")
++    return Default;
++  llvm::SmallString<128> Name;
++  llvm::raw_svector_ostream Out(Name);
++  cast<ItaniumMangleContext>(getCXXABI().getMangleContext())
++      .mangleCXXVTable(RD, Out);
++  return getArm64eDataPointerAuthSchema(
++      getPointerAuthStringDiscriminator(getContext(), Out.str()));
++}
+ 
+ /// Given a pointer-authentication schema, return a concrete "other"
+ /// discriminator for it.
+--- a/clang/lib/CodeGen/ItaniumCXXABI.cpp
++++ b/clang/lib/CodeGen/ItaniumCXXABI.cpp
+@@ -295,9 +295,11 @@
+   bool exportThunk() override { return true; }
+ 
+   llvm::Value *performThisAdjustment(CodeGenFunction &CGF, Address This,
++                                     const CXXRecordDecl *UnadjustedClass,
+                                      const ThisAdjustment &TA) override;
+ 
+   llvm::Value *performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
++                                       const CXXRecordDecl *UnadjustedClass,
+                                        const ReturnAdjustment &RA) override;
+ 
+   size_t getSrcArgforCopyCtor(const CXXConstructorDecl *,
+@@ -1992,7 +1994,8 @@
+     BaseSubobject Base, const CXXRecordDecl *VTableClass) {
+   llvm::Constant *AP = getVTableAddressPoint(Base, VTableClass);
+ 
+-  if (auto &Schema = CGM.getCodeGenOpts().PointerAuth.CXXVTablePointers)
++  auto Schema = CGM.getVTablePointerAuthSchema(Base.getBase());
++  if (Schema && !Schema.isAddressDiscriminated())
+     AP = CGM.getConstantSignedPointer(AP, Schema, nullptr, GlobalDecl(),
+                                       QualType());
+ 
+@@ -2210,6 +2213,7 @@
+ }
+ static llvm::Value *performTypeAdjustment(CodeGenFunction &CGF,
+                                           Address InitialPtr,
++                                          const CXXRecordDecl *UnadjustedClass,
+                                           int64_t NonVirtualAdjustment,
+                                           int64_t VirtualAdjustment,
+                                           bool IsReturnAdjustment) {
+@@ -2227,15 +2231,8 @@
+   // Perform the virtual adjustment if we have one.
+   llvm::Value *ResultPtr;
+   if (VirtualAdjustment) {
+-    Address VTablePtrPtr = CGF.Builder.CreateElementBitCast(V, CGF.Int8PtrTy);
+-    llvm::Value *VTablePtr = CGF.Builder.CreateLoad(VTablePtrPtr);
+-
+-    if (auto &Schema = CGF.CGM.getCodeGenOpts().PointerAuth.CXXVTablePointers) {
+-      CGPointerAuthInfo PointerAuth = CGF.EmitPointerAuthInfo(Schema, nullptr,
+-                                                              GlobalDecl(),
+-                                                              QualType());
+-      VTablePtr = CGF.EmitPointerAuthAuth(PointerAuth, VTablePtr);
+-    }
++    llvm::Value *VTablePtr =
++        CGF.GetVTablePtr(V, CGF.Int8PtrTy, UnadjustedClass);
+ 
+     llvm::Value *Offset;
+     llvm::Value *OffsetPtr = CGF.Builder.CreateConstInBoundsGEP1_64(
+@@ -2276,18 +2273,20 @@
+   return CGF.Builder.CreateBitCast(ResultPtr, InitialPtr.getType());
+ }
+ 
+-llvm::Value *ItaniumCXXABI::performThisAdjustment(CodeGenFunction &CGF,
+-                                                  Address This,
+-                                                  const ThisAdjustment &TA) {
+-  return performTypeAdjustment(CGF, This, TA.NonVirtual,
++llvm::Value *
++ItaniumCXXABI::performThisAdjustment(CodeGenFunction &CGF, Address This,
++                                     const CXXRecordDecl *UnadjustedClass,
++                                     const ThisAdjustment &TA) {
++  return performTypeAdjustment(CGF, This, UnadjustedClass, TA.NonVirtual,
+                                TA.Virtual.Itanium.VCallOffsetOffset,
+                                /*IsReturnAdjustment=*/false);
+ }
+ 
+ llvm::Value *
+ ItaniumCXXABI::performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
++                                       const CXXRecordDecl *UnadjustedClass,
+                                        const ReturnAdjustment &RA) {
+-  return performTypeAdjustment(CGF, Ret, RA.NonVirtual,
++  return performTypeAdjustment(CGF, Ret, UnadjustedClass, RA.NonVirtual,
+                                RA.Virtual.Itanium.VBaseOffsetOffset,
+                                /*IsReturnAdjustment=*/true);
+ }
+--- a/clang/lib/CodeGen/CGExprConstant.cpp
++++ b/clang/lib/CodeGen/CGExprConstant.cpp
+@@ -800,6 +800,16 @@
+       llvm::Constant *VTableAddressPoint =
+           CGM.getCXXABI().getVTableAddressPointForConstExpr(
+               BaseSubobject(CD, Offset), VTableClass);
++      auto Schema = CGM.getVTablePointerAuthSchema(CD);
++      if (Schema && Schema.isAddressDiscriminated()) {
++        if (Emitter.isAbstract())
++          return false;
++        auto *StorageAddress = Emitter.getCurrentAddrPrivate();
++        VTableAddressPoint = CGM.getConstantSignedPointer(
++            VTableAddressPoint, Schema, StorageAddress, GlobalDecl(),
++            QualType());
++        Emitter.registerCurrentAddrPrivate(VTableAddressPoint, StorageAddress);
++      }
+       if (!AppendBytes(Offset, VTableAddressPoint))
+         return false;
+     }
+--- a/clang/lib/CodeGen/CGCXXABI.h
++++ b/clang/lib/CodeGen/CGCXXABI.h
+@@ -506,13 +506,15 @@
+   virtual void setThunkLinkage(llvm::Function *Thunk, bool ForVTable,
+                                GlobalDecl GD, bool ReturnAdjustment) = 0;
+ 
+-  virtual llvm::Value *performThisAdjustment(CodeGenFunction &CGF,
+-                                             Address This,
+-                                             const ThisAdjustment &TA) = 0;
+-
+-  virtual llvm::Value *performReturnAdjustment(CodeGenFunction &CGF,
+-                                               Address Ret,
+-                                               const ReturnAdjustment &RA) = 0;
++  virtual llvm::Value *
++  performThisAdjustment(CodeGenFunction &CGF, Address This,
++                        const CXXRecordDecl *UnadjustedClass,
++                        const ThisAdjustment &TA) = 0;
++
++  virtual llvm::Value *
++  performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
++                          const CXXRecordDecl *UnadjustedClass,
++                          const ReturnAdjustment &RA) = 0;
+ 
+   virtual void EmitReturnFromThunk(CodeGenFunction &CGF,
+                                    RValue RV, QualType ResultType);
+--- a/clang/lib/CodeGen/MicrosoftCXXABI.cpp
++++ b/clang/lib/CodeGen/MicrosoftCXXABI.cpp
+@@ -394,9 +394,11 @@
+   bool exportThunk() override { return false; }
+ 
+   llvm::Value *performThisAdjustment(CodeGenFunction &CGF, Address This,
++                                     const CXXRecordDecl *UnadjustedClass,
+                                      const ThisAdjustment &TA) override;
+ 
+   llvm::Value *performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
++                                       const CXXRecordDecl *UnadjustedClass,
+                                        const ReturnAdjustment &RA) override;
+ 
+   void EmitThreadLocalInitFuncs(
+@@ -2183,9 +2185,10 @@
+     GV->setLinkage(llvm::GlobalVariable::AvailableExternallyLinkage);
+ }
+ 
+-llvm::Value *MicrosoftCXXABI::performThisAdjustment(CodeGenFunction &CGF,
+-                                                    Address This,
+-                                                    const ThisAdjustment &TA) {
++llvm::Value *
++MicrosoftCXXABI::performThisAdjustment(CodeGenFunction &CGF, Address This,
++                                       const CXXRecordDecl *UnadjustedClass,
++                                       const ThisAdjustment &TA) {
+   if (TA.isEmpty())
+     return This.getPointer();
+ 
+@@ -2237,6 +2240,7 @@
+ 
+ llvm::Value *
+ MicrosoftCXXABI::performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
++                                         const CXXRecordDecl *UnadjustedClass,
+                                          const ReturnAdjustment &RA) {
+   if (RA.isEmpty())
+     return Ret.getPointer();
+--- a/clang/lib/CodeGen/CGVTables.cpp
++++ b/clang/lib/CodeGen/CGVTables.cpp
+@@ -94,7 +94,7 @@
+       CGF,
+       Address(ReturnValue, CGF.ConvertTypeForMem(ResultType->getPointeeType()),
+               ClassAlign),
+-      Thunk.Return);
++      ClassDecl, Thunk.Return);
+ 
+   if (NullCheckValue) {
+     CGF.Builder.CreateBr(AdjustEnd);
+@@ -213,8 +213,9 @@
+          "Store of this should be in entry block?");
+   // Adjust "this", if necessary.
+   Builder.SetInsertPoint(&*ThisStore);
+-  llvm::Value *AdjustedThisPtr =
+-      CGM.getCXXABI().performThisAdjustment(*this, ThisPtr, Thunk.This);
++  llvm::Value *AdjustedThisPtr = CGM.getCXXABI().performThisAdjustment(
++      *this, ThisPtr, (Thunk.Method ? Thunk.Method : MD)->getParent(),
++      Thunk.This);
+   AdjustedThisPtr = Builder.CreateBitCast(AdjustedThisPtr,
+                                           ThisStore->getOperand(0)->getType());
+   ThisStore->setOperand(0, AdjustedThisPtr);
+@@ -302,8 +303,10 @@
+ 
+   // Adjust the 'this' pointer if necessary
+   llvm::Value *AdjustedThisPtr =
+-    Thunk ? CGM.getCXXABI().performThisAdjustment(
+-                          *this, LoadCXXThisAddress(), Thunk->This)
++      Thunk
++          ? CGM.getCXXABI().performThisAdjustment(
++                *this, LoadCXXThisAddress(),
++                (Thunk->Method ? Thunk->Method : MD)->getParent(), Thunk->This)
+           : LoadCXXThis();
+ 
+   // If perfect forwarding is required a variadic method, a method using
+@@ -506,6 +509,35 @@
+     MCtx.mangleCXXDtorThunk(DD, GD.getDtorType(), TI.This, Out);
+   else
+     MCtx.mangleThunk(MD, TI, Out);
++  if (CGM.getArm64eDataPointerAuthSchema(0) &&
++      TI.This.Virtual.Itanium.VCallOffsetOffset) {
++    // Equal Itanium adjustments can authenticate vptrs of different types.
++    // Keep the ABI's abbreviated name for the lexicographically first schema.
++    auto Qualifier = [&](const ThunkInfo &Info) {
++      auto Schema = CGM.getVTablePointerAuthSchema(
++          (Info.Method ? Info.Method : MD)->getParent());
++      unsigned Discriminator =
++          Schema.getOtherDiscrimination() ==
++                  PointerAuthSchema::Discrimination::Constant
++              ? Schema.getConstantDiscrimination()
++              : 0;
++      // Match std::type_info's explicit process-independent key override
++      // (3), rather than the default key (0), in the Itanium ABI encoding.
++      unsigned Key = Schema.isAddressDiscriminated() ? 0 : 3;
++      return std::string("U11__vtptrauthILj") + std::to_string(Key) + "Lb" +
++             (Schema.isAddressDiscriminated() ? "1" : "0") + "Lj" +
++             std::to_string(Discriminator) + "E";
++    };
++    auto ThisQualifier = Qualifier(TI);
++    bool Abbreviate = true;
++    if (auto *Infos = CGM.getItaniumVTableContext().getThunkInfo(GD))
++      for (const auto &Info : *Infos)
++        if (Info.This == TI.This && Info.Return == TI.Return &&
++            Qualifier(Info) < ThisQualifier)
++          Abbreviate = false;
++    if (!Abbreviate)
++      Out << ThisQualifier;
++  }
+   llvm::Type *ThunkVTableTy = CGM.getTypes().GetFunctionTypeForVTable(GD);
+   llvm::Constant *Thunk = CGM.GetAddrOfThunk(Name, ThunkVTableTy, GD);
+ 
+--- a/clang/lib/AST/VTableBuilder.cpp
++++ b/clang/lib/AST/VTableBuilder.cpp
+@@ -1570,8 +1570,15 @@
+               ComputeReturnAdjustment(ReturnAdjustmentOffset);
+ 
+             // This is a virtual thunk for the most derived class, add it.
++            const auto &Triple = Context.getTargetInfo().getTriple();
++            const auto &Opts = Context.getLangOpts();
++            bool NativePtrauth =
++                Triple.isArm64e() && Triple.isOSBinFormatMachO() &&
++                Opts.PointerAuthCalls && !Opts.SoftPointerAuth &&
++                !Opts.Kernel && !Opts.AppleKext;
+             AddThunk(Overrider.Method,
+-                     ThunkInfo(ThisAdjustment, ReturnAdjustment));
++                     ThunkInfo(ThisAdjustment, ReturnAdjustment,
++                               NativePtrauth ? OverriddenMD : nullptr));
+           }
+         }
+ 
+--- /dev/null
++++ b/clang/test/CodeGenCXX/arm64e-native-typeinfo.cpp
+@@ -0,0 +1,37 @@
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fptrauth-calls -std=c++20 -emit-llvm -o - %s | FileCheck %s
++
++// Model the platform's std::type_info declaration without system headers.
++namespace std {
++class type_info {
++  const char *name;
++protected:
++  explicit type_info(const char *value) : name(value) {}
++public:
++  virtual ~type_info();
++};
++}
++struct NativeTypeRoot : std::type_info {
++  NativeTypeRoot() : std::type_info("local") {}
++  virtual int value() const { return 1; }
++};
++struct NativeNormalRoot {
++  int number = 2;
++  virtual ~NativeNormalRoot() = default;
++  virtual int value() const { return number; }
++};
++struct NativeMixedRoots : virtual NativeTypeRoot, virtual NativeNormalRoot {
++  int value() const override { return 42; }
++};
++int check_types() {
++  auto *object = new NativeMixedRoots;
++  NativeTypeRoot *type = object;
++  NativeNormalRoot *normal = object;
++  int value = type->value() + normal->value();
++  delete type;
++  return value;
++}
++
++// Use the explicit process-independent key override (3) for the type_info ABI.
++// CHECK-DAG: define {{.*}} @_ZTv0_n32_NK16NativeMixedRoots5valueEvU11__vtptrauthILj3Lb0Lj0E(
++// CHECK-DAG: define {{.*}} @_ZTv0_n32_NK16NativeMixedRoots5valueEv(
++// CHECK-DAG: call i64 @llvm.ptrauth.auth({{.*}}, i32 2, i64 0)
+--- /dev/null
++++ b/clang/test/CodeGenCXX/arm64e-native-vtables.cpp
+@@ -0,0 +1,61 @@
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fptrauth-calls -std=c++20 -emit-llvm -o - %s | FileCheck %s --check-prefix=NATIVE
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fptrauth-calls -std=c++20 -emit-llvm -o - %s | FileCheck %s --check-prefix=NONPOLY
++// RUN: %clang_cc1 -triple arm64-apple-ios16.0 -fptrauth-calls -std=c++20 -emit-llvm -o - %s | FileCheck %s --check-prefix=LEGACY
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -std=c++20 -emit-llvm -o - %s | FileCheck %s --check-prefix=DISABLED
++
++// Nested array elements and secondary bases need their actual storage addresses.
++// NATIVE-DAG: i32 2, i64 ptrtoint (ptr getelementptr inbounds ({{.*}}, ptr @nativeStaticStorage, i32 0, i32 1, i32 0, i32 0) to i64), i64 8687
++// NATIVE-DAG: i32 2, i64 ptrtoint (ptr getelementptr inbounds ({{.*}}, ptr @nativeStaticStorage, i32 0, i32 1, i32 1, i32 2) to i64), i64 57007
++// Equal virtual adjustments for two base types must not share an auth thunk.
++// NATIVE-DAG: define {{.*}} @_ZTv0_n32_NK14NativeTwoRoots5valueEvU11__vtptrauthILj0Lb1Lj20797E(
++// NATIVE-DAG: define {{.*}} @_ZTv0_n32_NK14NativeTwoRoots5valueEv(
++// LEGACY-NOT: __vtptrauth
++// DISABLED-NOT: section "llvm.ptrauth"
++
++struct NativeRootA {
++  int a = 1;
++  virtual ~NativeRootA() = default;
++  virtual int value() const { return a; }
++};
++struct NativeRootB {
++  int b = 2;
++  virtual ~NativeRootB() = default;
++  virtual int value() const { return b; }
++};
++struct NativeTwoRoots : virtual NativeRootA, virtual NativeRootB {
++  int value() const override { return 42; }
++};
++int call_roots() {
++  auto *object = new NativeTwoRoots;
++  NativeRootA *a = object;
++  NativeRootB *b = object;
++  int value = a->value() + b->value();
++  delete b;
++  return value;
++}
++
++struct NativeStaticLeft {
++  int left;
++  constexpr NativeStaticLeft(int value = 40) : left(value) {}
++  virtual int leftValue() const { return left + 2; }
++};
++struct NativeStaticRight {
++  int right;
++  constexpr NativeStaticRight(int value = 41) : right(value) {}
++  virtual int rightValue() const { return right + 1; }
++};
++struct NativeStaticBoth : NativeStaticLeft, NativeStaticRight {
++  constexpr NativeStaticBoth() = default;
++};
++struct NativeStaticStorage { int prefix; NativeStaticBoth objects[2]; };
++extern constexpr NativeStaticStorage nativeStaticStorage = {17, {{}, {}}};
++int call_constant(const NativeStaticRight *right) { return right->rightValue(); }
++int constant_value() { return call_constant(&nativeStaticStorage.objects[1]); }
++
++struct NativePlainRoot { int number; };
++struct NativePlainMiddle : virtual NativePlainRoot { int middle; };
++// Non-polymorphic virtual inheritance uses a raw vptr in the native ABI.
++// NONPOLY-LABEL: define{{.*}} @_Z12nonpoly_cast
++// NONPOLY-NOT: llvm.ptrauth
++// NONPOLY: ret ptr
++NativePlainRoot *nonpoly_cast(NativePlainMiddle *object) { return object; }
+--- /dev/null
++++ b/clang/test/CodeGenObjC/arm64e-native-data.m
+@@ -0,0 +1,55 @@
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fptrauth-calls -fblocks -emit-llvm -o - %s | FileCheck %s --check-prefixes=COMMON,CF
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fptrauth-calls -fblocks -fno-constant-cfstrings -emit-llvm -o - %s | FileCheck %s --check-prefixes=COMMON,NS
++// RUN: %clang_cc1 -triple arm64e-apple-ios16.0 -fblocks -emit-llvm -o - %s | FileCheck %s --check-prefix=DISABLED
++// RUN: %clang_cc1 -triple arm64-apple-ios16.0 -fptrauth-calls -fblocks -emit-llvm -o - %s | FileCheck %s --check-prefix=DISABLED
++
++// ISA uses the field address and 0x6AE1. Superclass uses 0xB5AB.
++// COMMON-DAG: { ptr @"OBJC_METACLASS_$_NativeObjCChild", i32 2, i64 ptrtoint (ptr @"OBJC_CLASS_$_NativeObjCChild" to i64), i64 27361 }
++// COMMON-DAG: { ptr @"OBJC_CLASS_$_NativeObjCRoot", i32 2, i64 ptrtoint (ptr getelementptr inbounds (%struct._class_t, ptr @"OBJC_CLASS_$_NativeObjCChild", i32 0, i32 1) to i64), i64 46507 }
++// Method lists use the address of baseMethods/category methods and 0xC310.
++// COMMON-DAG: { ptr @"_OBJC_$_INSTANCE_METHODS_NativeObjCChild", i32 2, i64 ptrtoint (ptr getelementptr inbounds (%struct._class_ro_t, ptr @"_OBJC_CLASS_RO_$_NativeObjCChild", i32 0, i32 5) to i64), i64 49936 }
++// COMMON-DAG: { ptr @"_OBJC_$_CATEGORY_INSTANCE_METHODS_NativeObjCChild_$_Extra", i32 2, i64 ptrtoint (ptr getelementptr inbounds (%struct._category_t, ptr @"_OBJC_$_CATEGORY_NativeObjCChild_$_Extra", i32 0, i32 2) to i64), i64 49936 }
++// COMMON-DAG: { ptr @"_OBJC_$_CATEGORY_CLASS_METHODS_NativeObjCChild_$_Extra", i32 2, i64 ptrtoint (ptr getelementptr inbounds (%struct._category_t, ptr @"_OBJC_$_CATEGORY_NativeObjCChild_$_Extra", i32 0, i32 3) to i64), i64 49936 }
++// Keep the class_ro pointer unsigned and absent method lists literally null.
++// COMMON-DAG: @"OBJC_CLASS_$_NativeObjCChild" = global %struct._class_t { ptr {{.*}}, ptr {{.*}}, ptr @_objc_empty_cache, ptr null, ptr @"_OBJC_CLASS_RO_$_NativeObjCChild" }
++// COMMON-DAG: @"_OBJC_CLASS_RO_$_NativeObjCEmpty" = internal global %struct._class_ro_t { {{.*}}ptr @OBJC_CLASS_NAME_{{[.0-9]*}}, ptr null, ptr null, ptr null, ptr null, ptr null }
++// CF-DAG: { ptr @__CFConstantStringClassReference, i32 2, i64 ptrtoint (ptr @_unnamed_cfstring_ to i64), i64 27361 }
++// NS-DAG: { ptr @"OBJC_CLASS_$_NSConstantString", i32 2, i64 ptrtoint (ptr @_unnamed_nsstring_ to i64), i64 27361 }
++// COMMON-DAG: { ptr @_NSConcreteGlobalBlock, i32 2, i64 ptrtoint (ptr @__block_literal_global to i64), i64 27361 }
++// COMMON-DAG: call i64 @llvm.ptrauth.sign({{.*}}, i32 2, i64 {{%[^), ]+}})
++// COMMON-NOT: Objective-C Enforce ClassRO Pointer Signing
++// DISABLED-NOT: i32 2, i64 ptrtoint
++
++__attribute__((objc_root_class))
++@interface NativeObjCRoot
++- (int)value;
++@end
++@implementation NativeObjCRoot
++- (int)value { return 1; }
++@end
++@interface NativeObjCChild : NativeObjCRoot
++- (int)value;
++@end
++@implementation NativeObjCChild
++- (int)value { return 42; }
++@end
++@interface NativeObjCEmpty : NativeObjCRoot
++@end
++@implementation NativeObjCEmpty
++@end
++@interface NativeObjCChild (Extra)
++- (int)categoryValue;
+++ (int)categoryClassValue;
++@end
++@implementation NativeObjCChild (Extra)
++- (int)categoryValue { return 42; }
+++ (int)categoryClassValue { return 42; }
++@end
++@interface NSConstantString : NativeObjCRoot
++@end
++id stringValue(void) { return @"native"; }
++int (^globalBlock)(void) = ^{ return 42; };
++int stackBlock(int input) {
++  int (^block)(void) = ^{ return input; };
++  return block();
++}

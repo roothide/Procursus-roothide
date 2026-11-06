@@ -1,0 +1,17 @@
+# The Swift 5.9.2 LLVM branch adds IndexStore as a c-index-test dependency.
+# Debian llvm-toolchain-16 uses upstream LLVM 16, which has no IndexStore
+# target, so its clang-tools packaging has no such dependency to handle.
+#
+# Since packaging libIndexStore.dylib separately is undecided here, build
+# IndexStore statically for all consumers to avoid a missing runtime library.
+
+--- a/clang/tools/IndexStore/CMakeLists.txt
++++ b/clang/tools/IndexStore/CMakeLists.txt
+@@ -18,6 +18,6 @@
+   set(output_name "IndexStore")
+ endif()
+
+-add_clang_library(IndexStore SHARED
++add_clang_library(IndexStore STATIC
+   OUTPUT_NAME ${output_name}
+   ${SOURCES}

@@ -1,0 +1,222 @@
+Backport retcon continuation authentication from swiftlang/llvm-project PR #979.
+Upstream commits: cd67f1ddaace3519b531c156f40300102fa1e2db
+                  ebfd7ce4d015c185d72fec0bfea7efd156a6e154
+The upstream proposal was closed without merging; adapted to LLVM 16 intrinsics
+and its Shape union while retaining coroutine-storage address discrimination.
+
+--- a/llvm/lib/Transforms/Coroutines/CoroInstr.h
++++ b/llvm/lib/Transforms/Coroutines/CoroInstr.h
+@@ -25,6 +25,7 @@
+ #ifndef LLVM_LIB_TRANSFORMS_COROUTINES_COROINSTR_H
+ #define LLVM_LIB_TRANSFORMS_COROUTINES_COROINSTR_H
+ 
++#include "llvm/IR/GlobalPtrAuthInfo.h"
+ #include "llvm/IR/GlobalVariable.h"
+ #include "llvm/IR/IntrinsicInst.h"
+ #include "llvm/Support/raw_ostream.h"
+@@ -223,7 +224,14 @@
+   /// attributes, and calling convention of the continuation function(s)
+   /// are taken from this declaration.
+   Function *getPrototype() const {
+-    return cast<Function>(getArgOperand(PrototypeArg)->stripPointerCasts());
++    Value *Prototype = getArgOperand(PrototypeArg)->stripPointerCasts();
++    if (auto Auth = GlobalPtrAuthInfo::analyze(Prototype))
++      Prototype = const_cast<Constant *>(Auth->getPointer()->stripPointerCasts());
++    return cast<Function>(Prototype);
++  }
++
++  Optional<GlobalPtrAuthInfo> getPtrAuthInfo() const {
++    return GlobalPtrAuthInfo::analyze(getArgOperand(PrototypeArg));
+   }
+ 
+   /// Return the function to use for allocating memory.
+--- a/llvm/lib/Transforms/Coroutines/CoroInternal.h
++++ b/llvm/lib/Transforms/Coroutines/CoroInternal.h
+@@ -94,6 +94,9 @@
+   };
+ 
+   coro::ABI ABI;
++
++  // Kept outside the ABI union so its Optional is initialized for every Shape.
++  Optional<GlobalPtrAuthInfo> ResumePtrAuthInfo;
+ 
+   StructType *FrameTy;
+   Align FrameAlign;
+--- a/llvm/lib/Transforms/Coroutines/CoroSplit.cpp
++++ b/llvm/lib/Transforms/Coroutines/CoroSplit.cpp
+@@ -892,6 +892,8 @@
+     DummyArgs.push_back(new FreezeInst(UndefValue::get(A.getType())));
+     VMap[&A] = DummyArgs.back();
+   }
++  if (Shape.ABI == coro::ABI::Retcon || Shape.ABI == coro::ABI::RetconOnce)
++    VMap[Shape.getRetconCoroId()->getStorage()] = &*NewF->arg_begin();
+ 
+   SmallVector<ReturnInst *, 4> Returns;
+ 
+@@ -1785,6 +1787,28 @@
+   }
+ }
+ 
++// Materialize the schema carried by a signed continuation prototype.
++static Value *emitSignedRetconPointer(IRBuilder<> &Builder,
++                                      const GlobalPtrAuthInfo &Schema,
++                                      Constant *Pointer, Value *Storage) {
++  Module *M = Builder.GetInsertBlock()->getModule();
++  if (!Schema.hasAddressDiversity())
++    return Schema.createWithSameSchema(*M, Pointer);
++
++  Type *IntPtrTy = Schema.getAddrDiscriminator()->getType();
++  Value *Discriminator = Builder.CreatePtrToInt(Storage, IntPtrTy);
++  auto *Extra = const_cast<ConstantInt *>(Schema.getDiscriminator());
++  if (!Extra->isNullValue())
++    Discriminator = Builder.CreateCall(
++        Intrinsic::getDeclaration(M, Intrinsic::ptrauth_blend),
++        {Discriminator, Extra});
++  Value *Signed = Builder.CreateCall(
++      Intrinsic::getDeclaration(M, Intrinsic::ptrauth_sign),
++      {Builder.CreatePtrToInt(Pointer, IntPtrTy),
++       const_cast<ConstantInt *>(Schema.getKey()), Discriminator});
++  return Builder.CreateIntToPtr(Signed, Pointer->getType());
++}
++
+ static void splitRetconCoroutine(Function &F, coro::Shape &Shape,
+                                  SmallVectorImpl<Function *> &Clones) {
+   assert(Shape.ABI == coro::ABI::Retcon ||
+@@ -1898,9 +1922,16 @@
+       Builder.CreateRet(RetV);
+     }
+ 
++    Value *ContinuationValue = Continuation;
++    if (auto Auth = Shape.ResumePtrAuthInfo) {
++      IRBuilder<> Builder(Branch);
++      ContinuationValue = emitSignedRetconPointer(
++          Builder, *Auth, Continuation, Shape.getRetconCoroId()->getStorage());
++    }
++
+     // Branch to the return block.
+     Branch->setSuccessor(0, ReturnBB);
+-    ReturnPHIs[0]->addIncoming(Continuation, SuspendBB);
++    ReturnPHIs[0]->addIncoming(ContinuationValue, SuspendBB);
+     size_t NextPHIIndex = 1;
+     for (auto &VUse : Suspend->value_operands())
+       ReturnPHIs[NextPHIIndex++]->addIncoming(&*VUse, SuspendBB);
+--- a/llvm/lib/Transforms/Coroutines/Coroutines.cpp
++++ b/llvm/lib/Transforms/Coroutines/Coroutines.cpp
+@@ -336,6 +336,12 @@
+                   : coro::ABI::RetconOnce);
+     auto Prototype = ContinuationId->getPrototype();
+     this->RetconLowering.ResumePrototype = Prototype;
++    this->ResumePtrAuthInfo = ContinuationId->getPtrAuthInfo();
++    if (ResumePtrAuthInfo && ResumePtrAuthInfo->hasAddressDiversity() &&
++        !ResumePtrAuthInfo->hasSpecialAddressDiscriminator(
++            GlobalPtrAuthInfo::AddrDiscriminator_UseCoroStorage))
++      report_fatal_error("ptrauth-signed coroutine prototype must use the "
++                         "coroutine storage address discriminator");
+     this->RetconLowering.Alloc = ContinuationId->getAllocFunction();
+     this->RetconLowering.Dealloc = ContinuationId->getDeallocFunction();
+     this->RetconLowering.ReturnBlock = nullptr;
+@@ -511,6 +517,8 @@
+ /// Check that the given value is a well-formed prototype for the
+ /// llvm.coro.id.retcon.* intrinsics.
+ static void checkWFRetconPrototype(const AnyCoroIdRetconInst *I, Value *V) {
++  if (auto Auth = GlobalPtrAuthInfo::analyze(V))
++    V = const_cast<Constant *>(Auth->getPointer());
+   auto F = dyn_cast<Function>(V->stripPointerCasts());
+   if (!F)
+     fail(I, "llvm.coro.id.retcon.* prototype not a Function", V);
+--- /dev/null
++++ b/llvm/test/Transforms/Coroutines/coro-retcon-ptrauth.ll
+@@ -0,0 +1,93 @@
++; RUN: opt -opaque-pointers=0 -passes='coro-early,cgscc(coro-split),coro-cleanup,function(instcombine)' -S %s | FileCheck %s
++; Backported from swiftlang/llvm-project commits cd67f1d and ebfd7ce4.
++; Test both constant-only and coroutine-buffer-discriminated continuations.
++;
++; CHECK: [[F_SIGNED:@.*]] = private constant {{.*}}@f.resume.0{{.*}}i32 2, i64 0, i64 12867
++; CHECK-LABEL: define i8* @f(
++; CHECK: ret i8* bitcast ({{.*}}[[F_SIGNED]] to i8*)
++; CHECK-LABEL: define internal i8* @f.resume.0(
++; CHECK: [[F_SIGNED]]
++; CHECK-LABEL: define i8* @g(i8* %buffer,
++; CHECK: [[ADDR:%.*]] = ptrtoint i8* %buffer to i64
++; CHECK-NEXT: [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[ADDR]], i64 8723)
++; CHECK-NEXT: [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 ptrtoint (i8* (i8*, i1)* @g.resume.0 to i64), i32 2, i64 [[BLEND]])
++; CHECK-NEXT: [[PTR:%.*]] = inttoptr i64 [[SIGNED]] to i8*
++; CHECK-NEXT: ret i8* [[PTR]]
++; CHECK-LABEL: define internal i8* @g.resume.0(i8* {{.*}}%0,
++; CHECK: [[RESUME_ADDR:%.*]] = ptrtoint i8* %0 to i64
++; CHECK-NEXT: [[RESUME_BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[RESUME_ADDR]], i64 8723)
++; CHECK-NEXT: call i64 @llvm.ptrauth.sign(i64 ptrtoint (i8* (i8*, i1)* @g.resume.0 to i64), i32 2, i64 [[RESUME_BLEND]])
++
++target datalayout = "E-p:64:64"
++
++%swift.type = type { i64 }
++%swift.opaque = type opaque
++%T4red215EmptyCollectionV = type opaque
++%TSi = type <{ i64 }>
++
++@prototype.signed = private constant { i8*, i32, i64, i64 } { i8* bitcast (i8* (i8*, i1)* @prototype to i8*), i32 2, i64 0, i64 12867 }, section "llvm.ptrauth"
++
++define i8* @f(i8* %buffer, i32 %n) {
++entry:
++  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, i8* %buffer, i8* bitcast ({ i8*, i32, i64, i64 }* @prototype.signed to i8*), i8* bitcast (i8* (i32)* @allocate to i8*), i8* bitcast (void (i8*)* @deallocate to i8*))
++  %hdl = call i8* @llvm.coro.begin(token %id, i8* null)
++  br label %loop
++
++loop:
++  %n.val = phi i32 [ %n, %entry ], [ %inc, %resume ]
++  call void @print(i32 %n.val)
++  %unwind0 = call i1 (...) @llvm.coro.suspend.retcon.i1()
++  br i1 %unwind0, label %cleanup, label %resume
++
++resume:
++  %inc = add i32 %n.val, 1
++  br label %loop
++
++cleanup:
++  call i1 @llvm.coro.end(i8* %hdl, i1 0)
++  unreachable
++}
++
++
++
++
++@g.prototype.signed = private constant { i8*, i32, i64, i64 } { i8* bitcast (i8* (i8*, i1)* @prototype to i8*), i32 2, i64 1, i64 8723 }, section "llvm.ptrauth"
++
++define i8* @g(i8* %buffer, i32 %n) {
++entry:
++  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, i8* %buffer, i8* bitcast ({ i8*, i32, i64, i64 }* @g.prototype.signed to i8*), i8* bitcast (i8* (i32)* @allocate to i8*), i8* bitcast (void (i8*)* @deallocate to i8*))
++  %hdl = call i8* @llvm.coro.begin(token %id, i8* null)
++  br label %loop
++
++loop:
++  %n.val = phi i32 [ %n, %entry ], [ %inc, %resume ]
++  call void @print(i32 %n.val)
++  %unwind0 = call i1 (...) @llvm.coro.suspend.retcon.i1()
++  br i1 %unwind0, label %cleanup, label %resume
++
++resume:
++  %inc = add i32 %n.val, 1
++  br label %loop
++
++cleanup:
++  call i1 @llvm.coro.end(i8* %hdl, i1 0)
++  unreachable
++}
++
++
++
++declare noalias i8* @malloc(i64) #5
++declare void @free(i8* nocapture) #5
++
++declare token @llvm.coro.id.retcon(i32, i32, i8*, i8*, i8*, i8*)
++declare i8* @llvm.coro.begin(token, i8*)
++declare i1 @llvm.coro.suspend.retcon.i1(...)
++declare i1 @llvm.coro.end(i8*, i1)
++declare i8* @llvm.coro.prepare.retcon(i8*)
++
++declare i8* @prototype(i8*, i1 zeroext)
++
++declare noalias i8* @allocate(i32 %size)
++declare void @deallocate(i8* %ptr)
++
++declare void @print(i32)

@@ -58,7 +58,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 endif
 	cp -a $(BUILD_MISC)/procursus.sudoers $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)/etc/sudoers.d/procursus
 	$(I_N_T) -add_rpath $(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/libexec/sudo $(BUILD_STAGE)/sudo/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/sudo
-	$(call AFTER_BUILD)
+	$(call AFTER_BUILD,,,$(MEMO_LINK_PREFIX)$(MEMO_SUB_PREFIX)/libexec/sudo)
 endif
 
 sudo-package: sudo-stage
@@ -76,6 +76,7 @@ ifeq (,$(findstring darwin,$(MEMO_TARGET)))
 endif
 
 	# sudo.mk Permissions
+	$(FAKEROOT) chmod 0440 $(BUILD_DIST)/sudo/$(MEMO_PREFIX)/etc/sudoers.d/procursus
 	$(FAKEROOT) chmod u+s $(BUILD_DIST)/sudo/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/sudo
 
 	# sudo.mk Make .debs

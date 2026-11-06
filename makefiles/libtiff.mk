@@ -16,10 +16,12 @@ ifneq ($(wildcard $(BUILD_WORK)/libtiff/.build_complete),)
 libtiff:
 	@echo "Using previously built libtiff."
 else
-libtiff: libtiff-setup libjpeg-turbo xz zstd
+libtiff: libtiff-setup libjpeg-turbo xz zstd jbigkit
 	cd $(BUILD_WORK)/libtiff && ./configure -C \
 		$(DEFAULT_CONFIGURE_FLAGS) \
 		--disable-webp \
+		--with-jbig-lib-dir=$(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib \
+		--with-jbig-include-dir=$(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include \
 		--with-lzma-lib-dir=$(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)$(MEMO_ALT_PREFIX)/lib \
 		--with-lzma-include-dir=$(BUILD_BASE)/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)$(MEMO_ALT_PREFIX)/include
 	+$(MAKE) -C $(BUILD_WORK)/libtiff

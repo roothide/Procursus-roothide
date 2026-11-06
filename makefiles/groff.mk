@@ -33,6 +33,9 @@ groff: groff-setup
 		GROFF_BIN_PATH="$$(dirname $$(which groff))"
 	+$(MAKE) -C $(BUILD_WORK)/groff install \
 		DESTDIR=$(BUILD_STAGE)/groff
+	grep -rlIF -e '$(shell command -v perl)' -e '$(shell command -v bash)' "$(BUILD_STAGE)/groff" | xargs -r \
+		sed -i -e 's|$(shell command -v perl)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/perl|g' \
+			-e 's|$(shell command -v bash)|$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/bash|g'
 	$(call AFTER_BUILD)
 endif
 

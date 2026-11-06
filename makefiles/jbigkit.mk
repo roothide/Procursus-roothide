@@ -25,13 +25,6 @@ jbigkit: jbigkit-setup
 	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/jbig_ar.h $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/jbig_ar.h
 	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/jbig85.h $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/jbig85.h
 
-	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/libjbig.0.dylib $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libjbig.0.dylib
-	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/libjbig.dylib $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/lib/libjbig.dylib
-
-	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/jbig.h $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/jbig.h
-	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/jbig_ar.h $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/jbig_ar.h
-	$(INSTALL) -D -m644 $(BUILD_WORK)/jbigkit/libjbig/jbig85.h $(BUILD_BASE)$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/include/jbig85.h
-
 	$(INSTALL) -D -m755 $(BUILD_WORK)/jbigkit/pbmtools/jbgtopbm $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/jbgtopbm
 	$(INSTALL) -D -m755 $(BUILD_WORK)/jbigkit/pbmtools/pbmtojbg $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/pbmtojbg
 	$(INSTALL) -D -m755 $(BUILD_WORK)/jbigkit/pbmtools/jbgtopbm85 $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/bin/jbgtopbm85
@@ -41,7 +34,7 @@ jbigkit: jbigkit-setup
 	$(INSTALL) -m644 "$(BUILD_WORK)/jbigkit/pbmtools/pbmtojbg.1" $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/man/man1
 	$(INSTALL) -m644 "$(BUILD_WORK)/jbigkit/pbmtools/jbgtopbm.1" $(BUILD_STAGE)/jbigkit/$(MEMO_PREFIX)$(MEMO_SUB_PREFIX)/share/man/man1
 
-	$(call AFTER_BUILD)
+	$(call AFTER_BUILD,copy)
 endif
 
 jbigkit-package: jbigkit-stage
